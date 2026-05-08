@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tbc/pages/login_page.dart'; // Import sudah benar
+import 'package:tbc/pages/splash_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,14 +12,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TBC Tracker',
-      debugShowCheckedModeBanner: false, // Menghilangkan banner debug di pojok kanan
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // Sesuaikan seedColor ke Hijau agar senada dengan UI-mu
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00A355)),
         useMaterial3: true,
       ),
-      // Arahkan home ke LoginPage
-      home: const LoginPage(), 
+      home: const SplashPage(),
     );
   }
 }

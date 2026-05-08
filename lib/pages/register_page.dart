@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_input.dart';
 import 'login_page.dart';
+import 'home_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -51,7 +52,10 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_nameError == null && _emailError == null && 
         _passwordError == null && _confirmPasswordError == null) {
       print("Proses Registrasi Berhasil untuk: ${_nameController.text}");
-      // TODO: Hubungkan ke Service API NestJS kamu di sini nanti
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_input.dart';
+import 'forgot_password_page.dart';
 import 'register_page.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,7 +32,10 @@ class _LoginPageState extends State<LoginPage> {
 
     if (_emailError == null && _passwordError == null) {
       print("Login berhasil: ${_emailController.text}");
-      // Lanjut ke dashboard atau API NestJS nanti
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
     }
   }
 
@@ -144,7 +149,10 @@ class _LoginPageState extends State<LoginPage> {
       alignment: Alignment.centerRight,
       child: TextButton(
         onPressed: () {
-          // Navigasi ke Lupa Password
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+          );
         },
         child: const Text(
           "Lupa Password?",
