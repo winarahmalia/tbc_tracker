@@ -382,7 +382,7 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1B4332), Color(0xFF40916C)],
+                      colors: [Color(0xFF006D37), Color(0xFF2ECC71)],
                     ),
                   ),
                 ),
@@ -397,10 +397,16 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
   Widget _buildOptionCard({required bool isYes}) {
     bool isSelected = _selectedAnswer == isYes;
     
-    Color bgColor = isYes ? const Color(0xFFF2FCF5) : const Color(0xFFFFF4F4);
-    Color borderColor = isSelected ? (isYes ? const Color(0xFF40916C) : Colors.red.shade300) : const Color(0xFFEFEFEF);
-    Color iconBgColor = isYes ? const Color(0xFFA5D6BA) : const Color(0xFFF6BDBD);
-    Color iconColor = isYes ? const Color(0xFF1B4332) : const Color(0xFFD91E18);
+    Color bgColor = isYes
+        ? const Color(0xFF2ECC71).withOpacity(0.07)
+        : const Color(0xFFC13536).withOpacity(0.07);
+    Color borderColor = isSelected
+        ? (isYes ? const Color(0xFF006D37) : const Color(0xFFC13536))
+        : const Color(0xFFEFEFEF);
+    Color iconBgColor = isYes
+        ? const Color(0xFF2ECC71).withOpacity(0.2)
+        : const Color(0xFFC13536).withOpacity(0.15);
+    Color iconColor = isYes ? const Color(0xFF006D37) : const Color(0xFFC13536);
     IconData icon = isYes ? Icons.check_circle : Icons.cancel;
     String title = isYes ? "Ya" : "Tidak";
     String subtitle = isYes ? "Mengalami gejala" : "Tidak mengalami";
@@ -442,24 +448,53 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
   }
 
   Widget _buildNextButton() {
+    final bool canNext = _selectedAnswer != null;
     return Align(
       alignment: Alignment.center,
       child: SizedBox(
         width: 220,
         height: 55,
-        child: ElevatedButton(
-          onPressed: _selectedAnswer == null ? null : () {
-            HapticFeedback.lightImpact();
-            _handleAnswer(_selectedAnswer!);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2DC653),
-            disabledBackgroundColor: Colors.grey.shade300,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-            elevation: 0,
-          ),
-          child: const Text("Next", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
+        child: canNext
+            ? Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF006D37), Color(0xFF2ECC71)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2ECC71).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _handleAnswer(_selectedAnswer!);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: const Text("Next",
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              )
+            : ElevatedButton(
+                onPressed: null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey.shade300,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  elevation: 0,
+                ),
+                child: const Text("Next",
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
       ),
     );
   }

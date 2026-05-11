@@ -32,13 +32,16 @@ class _RegisterPageState extends State<RegisterPage> {
   void _handleRegister() {
     setState(() {
       // Validasi Nama Lengkap
-      _nameError = _nameController.text.isEmpty ? "*Harus Menggunakan Karakter" : null;
+      _nameError = _nameController.text.trim().isEmpty ? "*Harus Menggunakan Karakter" : null;
       
-      // Validasi Email (Cek minimal ada '@')
-      _emailError = !_emailController.text.contains('@') ? "*Email Tidak valid" : null;
+      // Validasi Email (Harus format tepat nama@gmail.com)
+      final emailRegex = RegExp(r'^[\w.+\-]+@gmail\.com$');
+      _emailError = !emailRegex.hasMatch(_emailController.text)
+          ? "*Email harus berformat nama@gmail.com"
+          : null;
       
       // Validasi Kata Sandi (Cek minimal 6 karakter)
-      _passwordError = _passwordController.text.length < 6 
+      _passwordError = _passwordController.text.trim().length < 6 
           ? "*Kata Sandi minimal 6 karakter" 
           : null;
       
@@ -175,21 +178,28 @@ class _RegisterPageState extends State<RegisterPage> {
     return SizedBox(
       width: double.infinity,
       height: 50,
-      child: ElevatedButton(
-        onPressed: _handleRegister,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
-          elevation: 0, // Tidak pakai bayangan seperti Figma
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25), // Tombol oval
-          ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accentGreen.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-        child: const Text(
-          "Daftar",
-          style: TextStyle(
-            color: Colors.white, 
-            fontSize: 16, 
-            fontWeight: FontWeight.bold
+        child: ElevatedButton(
+          onPressed: _handleRegister,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          ),
+          child: const Text(
+            "Daftar",
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
       ),

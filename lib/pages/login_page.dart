@@ -24,8 +24,12 @@ class _LoginPageState extends State<LoginPage> {
   // Fungsi penanganan tombol login
   void _handleLogin() {
     setState(() {
-      _emailError = _emailController.text.isEmpty ? "*Email harus diisi" : null;
-      _passwordError = _passwordController.text.length < 6 
+      // Validasi Email (Harus format tepat nama@gmail.com)
+      final emailRegex = RegExp(r'^[\w.+\-]+@gmail\.com$');
+      _emailError = !emailRegex.hasMatch(_emailController.text)
+          ? "*Email harus berformat nama@gmail.com"
+          : null;
+      _passwordError = _passwordController.text.trim().length < 6 
           ? "*Password minimal 6 karakter" 
           : null;
     });
@@ -169,19 +173,28 @@ class _LoginPageState extends State<LoginPage> {
     return SizedBox(
       width: double.infinity,
       height: 55,
-      child: ElevatedButton(
-        onPressed: _handleLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          elevation: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accentGreen.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-        child: const Text(
-          "Masuk",
-          style: TextStyle(
-            fontSize: 18, 
-            fontWeight: FontWeight.bold, 
-            color: Colors.white
+        child: ElevatedButton(
+          onPressed: _handleLogin,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          child: const Text(
+            "Masuk",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),
       ),

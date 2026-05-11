@@ -21,15 +21,11 @@ class CustomButton extends StatelessWidget {
       width: double.infinity,
       height: 55,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF007A3E), Color(0xFF00C853)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
+        gradient: AppColors.buttonGradient,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF00C853).withOpacity(0.3),
+            color: AppColors.accentGreen.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),

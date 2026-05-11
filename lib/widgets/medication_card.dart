@@ -48,16 +48,11 @@ class MedicationCard extends StatelessWidget {
                   color: Color(0xFF1B4332),
                 ),
               ),
-              TextButton(
+              IconButton(
                 onPressed: onSeeAllPressed,
-                child: const Text(
-                  "Lihat Semua",
-                  style: TextStyle(
-                    color: Color(0xFF40916C),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                icon: const Icon(Icons.edit_outlined, color: Color(0xFF006D37), size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
@@ -75,13 +70,13 @@ class MedicationCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFD1F2E1),
+              color: const Color(0xFF2ECC71).withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               "${percentage.toInt()}%",
               style: const TextStyle(
-                color: Color(0xFF40916C),
+                color: Color(0xFF006D37),
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
@@ -131,33 +126,68 @@ class MedicationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 30),
-          SizedBox(
-            width: double.infinity,
-            height: 55,
-            child: ElevatedButton(
-              onPressed: isTaken ? null : onActionPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isTaken ? const Color(0xFF74C69D) : const Color(0xFF2D6A4F),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check, color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    isTaken ? "Anda Sudah Minum Obat Hari Ini" : "Saya Sudah Minum Obat Hari Ini",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+          isTaken
+              ? SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2ECC71).withOpacity(0.4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      elevation: 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 20),
+                        SizedBox(width: 10),
+                        Text(
+                          "Anda Sudah Minum Obat Hari Ini",
+                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                )
+              : Container(
+                  width: double.infinity,
+                  height: 55,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF006D37), Color(0xFF2ECC71)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2ECC71).withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: onActionPressed,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 20),
+                        SizedBox(width: 10),
+                        Text(
+                          "Saya Sudah Minum Obat Hari Ini",
+                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
         ],
       ),
     );
