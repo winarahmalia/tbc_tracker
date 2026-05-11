@@ -26,13 +26,13 @@ class StreakCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF40916C),
+              color: streakDays == 0 ? const Color(0xFF6FF1A5) : const Color(0xFF40916C),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
-              "STREAK AKTIF",
+            child: Text(
+              streakDays == 0 ? "BELUM MULAI" : "STREAK AKTIF",
               style: TextStyle(
-                color: Colors.white,
+                color: streakDays == 0 ? const Color(0xFF1B4332) : Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
@@ -42,7 +42,7 @@ class StreakCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                "$streakDays hari",
+                streakDays == 0 ? "-" : "$streakDays hari",
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -56,27 +56,26 @@ class StreakCard extends StatelessWidget {
               ),
             ],
           ),
-          const Text(
-            "Pertahankan terus!",
-            style: TextStyle(
+          Text(
+            streakDays == 0 ? "Mulai Langkah Pertamamu!" : "Pertahankan terus!",
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF2D6A4F),
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (index) {
-              bool isDone = index < completionHistory.length && completionHistory[index];
+          Wrap(
+            spacing: 10,
+            children: completionHistory.map((isDone) {
               return Container(
                 width: 35,
                 height: 35,
                 decoration: BoxDecoration(
-                  color: isDone ? const Color(0xFF40916C) : Colors.white.withOpacity(0.5),
+                  color: isDone ? const Color(0xFF40916C) : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isDone ? Colors.transparent : const Color(0xFF40916C),
+                    color: const Color(0xFF40916C),
                     width: 1.5,
                   ),
                 ),
@@ -84,7 +83,7 @@ class StreakCard extends StatelessWidget {
                     ? const Icon(Icons.check, color: Colors.white, size: 18)
                     : null,
               );
-            }),
+            }).toList(),
           ),
         ],
       ),

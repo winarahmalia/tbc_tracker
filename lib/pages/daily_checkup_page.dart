@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_button.dart';
 
@@ -12,41 +13,48 @@ class DailyCheckupPage extends StatefulWidget {
 class _DailyCheckupPageState extends State<DailyCheckupPage> {
   int _currentStep = 0;
   final Map<int, bool> _answers = {};
+  bool? _selectedAnswer;
+  bool _isAnalyzing = false;
 
-  final List<Map<String, dynamic>> _questions = [
+  List<Map<String, dynamic>> get _questions => [
     {
       "id": "Q1",
-      "category": "Urin",
-      "icon": Icons.water_drop_outlined,
-      "question": "Apakah air kencing (urin) Anda berwarna merah atau oranye?",
-      "isCritical": false,
+      "category": "Pencernaan",
+      "icon": Icons.restaurant_menu_outlined,
+      "question": "Apakah akhir-akhir ini Anda sering merasa mual, ingin muntah, atau kehilangan nafsu makan secara drastis?",
+      "subtext": "Pikirkan apakah keinginan makan Anda berkurang drastis sejak memulai pengobatan.",
+      "isCritical": true,
     },
     {
       "id": "Q2",
-      "category": "Fungsi Hati",
-      "icon": Icons.visibility_outlined,
-      "question": "Apakah bagian putih mata atau kulit Anda terlihat menguning?",
-      "isCritical": true,
+      "category": "Saraf & Sendi",
+      "icon": Icons.accessibility_new_outlined,
+      "question": "Apakah Anda merasa kesemutan, kebas, atau nyeri sendi yang mengganggu aktivitas?",
+      "subtext": "Fokus pada area ujung jari tangan atau ujung kaki Anda hari ini.",
+      "isCritical": false,
     },
     {
       "id": "Q3",
-      "category": "Pencernaan",
-      "icon": Icons.restaurant_menu_outlined,
-      "question": "Apakah Anda merasa mual, muntah, atau tidak nafsu makan?",
-      "isCritical": true,
+      "category": "Urin",
+      "icon": Icons.water_drop_outlined,
+      "question": "Apakah air kencing (urin) Anda berwarna merah atau oranye?",
+      "subtext": "Perhatikan warna urin Anda saat buang air kecil hari ini.",
+      "isCritical": false,
     },
     {
       "id": "Q4",
-      "category": "Saraf & Sendi",
-      "icon": Icons.accessibility_new_outlined,
-      "question": "Apakah Anda merasa kesemutan atau nyeri sendi hebat?",
-      "isCritical": false,
+      "category": "Fungsi Hati",
+      "icon": Icons.visibility_outlined,
+      "question": "Apakah bagian putih mata atau kulit Anda terlihat menguning?",
+      "subtext": "Perubahan warna kuning bisa menjadi tanda masalah pada organ hati Anda.",
+      "isCritical": true,
     },
     {
       "id": "Q5",
       "category": "Sensori",
       "icon": Icons.hearing_outlined,
       "question": "Apakah pandangan kabur atau telinga berdenging tiba-tiba?",
+      "subtext": "Gangguan penglihatan atau pendengaran yang tidak biasa.",
       "isCritical": true,
     },
     {
@@ -54,25 +62,98 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
       "category": "Pernapasan",
       "icon": Icons.air_outlined,
       "question": "Apakah Anda mengalami sesak napas atau batuk darah?",
+      "subtext": "Kondisi darurat jika Anda mengeluarkan darah saat batuk.",
+      "isCritical": true,
+    },
+    {
+      "id": "Q7",
+      "category": "Berat Badan",
+      "icon": Icons.monitor_weight_outlined,
+      "question": "Apakah berat badan Anda turun secara drastis dalam minggu ini?",
+      "subtext": "Penurunan berat badan drastis bisa menjadi tanda infeksi yang belum teratasi.",
+      "isCritical": true,
+    },
+    {
+      "id": "Q8",
+      "category": "Keringat Malam",
+      "icon": Icons.nights_stay_outlined,
+      "question": "Apakah Anda sering berkeringat di malam hari tanpa alasan jelas?",
+      "subtext": "Keringat malam yang berlebih adalah salah satu gejala spesifik TBC.",
+      "isCritical": true,
+    },
+    {
+      "id": "Q9",
+      "category": "Kelelahan",
+      "icon": Icons.battery_alert_outlined,
+      "question": "Apakah Anda merasa sangat lelah walau tidak melakukan aktivitas berat?",
+      "subtext": "Badan yang terus-menerus terasa lemas butuh perhatian ekstra.",
+      "isCritical": false,
+    },
+    {
+      "id": "Q10",
+      "category": "Obat",
+      "icon": Icons.medication_outlined,
+      "question": "Apakah Anda mengalami ruam gatal di kulit setelah minum obat?",
+      "subtext": "Reaksi alergi obat sangat penting untuk segera dilaporkan.",
       "isCritical": true,
     },
   ];
 
-  void _handleAnswer(bool answer) {
+  void _handleBack() async {
+    HapticFeedback.lightImpact();
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+        _selectedAnswer = _answers[_currentStep];
+      });
+    } else {
+      bool? shouldExit = await _showExitConfirmation();
+      if (shouldExit == true && mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  void _handleAnswer(bool answer) async {
+    HapticFeedback.lightImpact();
     setState(() {
       _answers[_currentStep] = answer;
-      if (answer && _questions[_currentStep]['isCritical']) {
-        _showResult(isCritical: true);
-        return;
-      }
-      if (_currentStep < _questions.length - 1) {
-        _currentStep++;
-      } else {
-        bool hasAnyWarning = _answers.values.any((val) => val == true);
-        _showResult(isCritical: false, hasWarning: hasAnyWarning);
-      }
     });
+
+    if (_currentStep < _questions.length - 1) {
+      setState(() {
+        _currentStep++;
+        _selectedAnswer = _answers.containsKey(_currentStep) ? _answers[_currentStep] : null;
+      });
+    } else {
+      bool isCritical = false;
+      bool hasAnyWarning = false;
+
+      for (int i = 0; i < _questions.length; i++) {
+        if (_answers[i] == true) {
+          hasAnyWarning = true;
+          if (_questions[i]['isCritical'] == true) {
+            isCritical = true;
+          }
+        }
+      }
+
+      await _processAndShowResult(isCritical: isCritical, hasWarning: hasAnyWarning);
+    }
   }
+
+  Future<void> _processAndShowResult({required bool isCritical, bool hasWarning = false}) async {
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    if (!mounted) return;
+
+    _showResult(isCritical: isCritical, hasWarning: hasWarning);
+  }
+
 
   void _showResult({required bool isCritical, bool hasWarning = false}) {
     Navigator.pushReplacement(
@@ -86,37 +167,95 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
     );
   }
 
+  Future<bool?> _showExitConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          "Batalkan Pengecekan?",
+          style: TextStyle(color: Color(0xFF1B4332), fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          "Anda belum menyelesaikan pengecekan kondisi hari ini. Yakin ingin keluar?",
+          style: TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Tidak", style: TextStyle(color: Color(0xFF40916C), fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD91E18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: const Text("Ya, Keluar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isAnalyzing) return _buildLoadingScreen();
+
     var q = _questions[_currentStep];
 
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            colors: [AppColors.lightGreen, Colors.white],
-            center: Alignment(0, -0.6),
-            radius: 1.2,
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
               _buildHeader(),
               const SizedBox(height: 30),
               _buildProgressBar(),
-              const Expanded(
-                child: SizedBox(),
+              const SizedBox(height: 30),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: SingleChildScrollView(
+                    key: ValueKey<int>(_currentStep),
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          q['question'],
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E1E1E),
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        Text(
+                          q['subtext'] ?? "",
+                          style: const TextStyle(
+                            fontSize: 15, 
+                            color: Color(0xFF555555),
+                            height: 1.5, 
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 35),
+                        _buildOptionCard(isYes: true),
+                        _buildOptionCard(isYes: false),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              _buildMainCard(q),
-              const Expanded(
-                child: SizedBox(),
-              ),
-              _buildActionButtons(),
-              const SizedBox(height: 40),
+              _buildNextButton(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -124,152 +263,203 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Color(0xFF1B4332)),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Text(
-            "Pantau Kondisi",
-            style: TextStyle(
-              fontSize: 16, 
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B4332),
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF40916C)),
             ),
-          ),
-          const SizedBox(width: 48),
-        ],
+            const SizedBox(height: 30),
+            const Text(
+              "Menganalisis kondisi Anda...",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1B4332),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Harap tunggu sebentar",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1B4332)),
+          onPressed: _handleBack,
+          padding: EdgeInsets.zero,
+          alignment: Alignment.centerLeft,
+        ),
+        const Text(
+          "Cek",
+          style: TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1B4332),
+          ),
+        ),
+        const SizedBox(width: 48),
+      ],
     );
   }
 
   Widget _buildProgressBar() {
-    double progress = (_currentStep + 1) / _questions.length;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: const Color(0xFFE8F5E9),
-              color: const Color(0xFF40916C),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Pertanyaan ${_currentStep + 1} dari ${_questions.length}",
-            style: const TextStyle(
-              fontSize: 12, 
-              color: Colors.grey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    double progress = (_currentStep) / _questions.length;
+    int percentage = (progress * 100).toInt();
 
-  Widget _buildMainCard(Map<String, dynamic> q) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 30),
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "PERTANYAAN",
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF1B4332),
+            letterSpacing: 1.5,
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1F2E1).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              q['icon'] as IconData,
-              color: const Color(0xFF40916C),
-              size: 40,
-            ),
-          ),
-          const SizedBox(height: 25),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              q['category'].toString().toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFF40916C),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            q['question'],
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B4332),
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Column(
-        children: [
-          CustomButton(
-            text: "Ya, Saya Merasakannya",
-            onPressed: () => _handleAnswer(true),
-          ),
-          const SizedBox(height: 15),
-          SizedBox(
-            width: double.infinity,
-            height: 55,
-            child: OutlinedButton(
-              onPressed: () => _handleAnswer(false),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF40916C), width: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              child: const Text(
-                "Tidak",
-                style: TextStyle(
-                  color: Color(0xFF40916C),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+        ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  "${_currentStep + 1}",
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.black),
                 ),
+                Text(
+                  " / ${_questions.length}",
+                  style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                "$percentage% Selesai",
+                style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 8,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutCubic,
+                  width: constraints.maxWidth * (progress == 0 ? 0.05 : progress),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1B4332), Color(0xFF40916C)],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOptionCard({required bool isYes}) {
+    bool isSelected = _selectedAnswer == isYes;
+    
+    Color bgColor = isYes ? const Color(0xFFF2FCF5) : const Color(0xFFFFF4F4);
+    Color borderColor = isSelected ? (isYes ? const Color(0xFF40916C) : Colors.red.shade300) : const Color(0xFFEFEFEF);
+    Color iconBgColor = isYes ? const Color(0xFFA5D6BA) : const Color(0xFFF6BDBD);
+    Color iconColor = isYes ? const Color(0xFF1B4332) : const Color(0xFFD91E18);
+    IconData icon = isYes ? Icons.check_circle : Icons.cancel;
+    String title = isYes ? "Ya" : "Tidak";
+    String subtitle = isYes ? "Mengalami gejala" : "Tidak mengalami";
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedAnswer = isYes;
+        });
+      },
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.symmetric(vertical: 25),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: iconColor, size: 32),
+            ),
+            const SizedBox(height: 15),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black)),
+            const SizedBox(height: 6),
+            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNextButton() {
+    return Align(
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 220,
+        height: 55,
+        child: ElevatedButton(
+          onPressed: _selectedAnswer == null ? null : () {
+            HapticFeedback.lightImpact();
+            _handleAnswer(_selectedAnswer!);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2DC653),
+            disabledBackgroundColor: Colors.grey.shade300,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            elevation: 0,
+          ),
+          child: const Text("Next", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
       ),
     );
   }

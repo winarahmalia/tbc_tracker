@@ -50,25 +50,11 @@ class _HomePageState extends State<HomePage> {
                       _buildGreeting(),
                       const SizedBox(height: 25),
                       StreakCard(
-                        streakDays: 5,
-                        completionHistory: const [true, true, true, true, true, false],
+                        streakDays: 0,
+                        completionHistory: const [true, false],
                       ),
                       const SizedBox(height: 25),
-                      MedicationCard(
-                        currentDay: 6,
-                        totalDays: 100,
-                        percentage: 6,
-                        isTaken: _isTaken,
-                        onActionPressed: () {
-                          setState(() {
-                            _isTaken = true;
-                            _statusMessage = "success";
-                          });
-                        },
-                        onSeeAllPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const CalendarHistoryPage()));
-                        },
-                      ),
+                      _buildSetupScheduleCard(),
                       const SizedBox(height: 25),
                       _buildCheckupCard(),
                       const SizedBox(height: 25),
@@ -86,6 +72,61 @@ class _HomePageState extends State<HomePage> {
               _buildBottomNavigation(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSetupScheduleCard() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ScheduleSetupPage()),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3FAF6),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Column(
+          children: [
+            const Text(
+              "Ayo, Atur Jadwal\nKesehatanmu",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1B4332),
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF1B4332), width: 2.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.add,
+                size: 30,
+                color: Color(0xFF1B4332),
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              "Tambah Jadwal Pertama",
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1B4332),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -222,10 +263,15 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        const CircleAvatar(
-          radius: 18,
-          backgroundColor: Color(0xFF1B4332),
-          child: Icon(Icons.person, color: Colors.white, size: 20),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileSettingsPage()));
+          },
+          child: const CircleAvatar(
+            radius: 18,
+            backgroundColor: Color(0xFF1B4332),
+            child: Icon(Icons.person, color: Colors.white, size: 20),
+          ),
         ),
       ],
     );
@@ -268,8 +314,7 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildNavItem(Icons.home_filled, 0),
-          _buildNavItem(Icons.calendar_month_outlined, 1),
-          _buildNavItem(Icons.menu_rounded, 2),
+          _buildNavItem(Icons.checklist, 1),
         ],
       ),
     );
@@ -279,11 +324,16 @@ class _HomePageState extends State<HomePage> {
     bool isActive = _currentIndex == index;
     return GestureDetector(
       onTap: () {
-        setState(() => _currentIndex = index);
         if (index == 1) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const CalendarHistoryPage()));
-        } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileSettingsPage()));
+          setState(() => _currentIndex = index);
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyCheckupPage()))
+              .then((_) {
+            if (mounted) {
+              setState(() => _currentIndex = 0);
+            }
+          });
+        } else {
+          setState(() => _currentIndex = index);
         }
       },
       child: Container(

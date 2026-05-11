@@ -38,10 +38,14 @@ class CustomInput extends StatelessWidget {
           obscureText: isPassword && !isVisible,
           decoration: InputDecoration(
             hintText: hintText,
+            hintStyle: TextStyle(color: Colors.black.withOpacity(0.25)),
             prefixIcon: Icon(prefixIcon, size: 22),
             suffixIcon: isPassword
                 ? IconButton(
-                    icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off),
+                    icon: Icon(
+                      isVisible ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.black.withOpacity(0.75),
+                    ),
                     onPressed: onToggleVisibility,
                   )
                 : null,
