@@ -57,7 +57,12 @@ class _RegisterPageState extends State<RegisterPage> {
       print("Proses Registrasi Berhasil untuk: ${_nameController.text}");
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            userName: _nameController.text,
+            userEmail: _emailController.text,
+          ),
+        ),
       );
     }
   }

@@ -36,9 +36,19 @@ class _LoginPageState extends State<LoginPage> {
 
     if (_emailError == null && _passwordError == null) {
       print("Login berhasil: ${_emailController.text}");
+      
+      String email = _emailController.text;
+      String username = email.split('@')[0];
+      username = username[0].toUpperCase() + username.substring(1);
+      
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            userName: username,
+            userEmail: email,
+          ),
+        ),
       );
     }
   }

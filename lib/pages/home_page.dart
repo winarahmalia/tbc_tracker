@@ -9,7 +9,9 @@ import 'profile_settings_page.dart';
 import 'daily_checkup_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String? userName;
+  final String? userEmail;
+  const HomePage({super.key, this.userName, this.userEmail});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -354,7 +356,12 @@ class _HomePageState extends State<HomePage> {
           onTap: () async {
             final result = await Navigator.push<Map<String, dynamic>>(
               context,
-              MaterialPageRoute(builder: (context) => const ProfileSettingsPage()),
+              MaterialPageRoute(
+                builder: (context) => ProfileSettingsPage(
+                  initialName: widget.userName ?? "Dinda",
+                  initialEmail: widget.userEmail ?? "dinda@email.com",
+                ),
+              ),
             );
             
             if (result != null && mounted) {
@@ -385,17 +392,17 @@ class _HomePageState extends State<HomePage> {
 
   // ─── Greeting ─────────────────────────────────────────────────────────────
   Widget _buildGreeting() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Selamat Pagi, Dinda",
-          style: TextStyle(
+          "Selamat Pagi, ${widget.userName ?? 'Dinda'}",
+          style: const TextStyle(
             fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1B4332),
           ),
         ),
-        SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 4),
+        const Text(
           "Yuk fokus pada pemulihan hari ini.",
           style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
         ),
