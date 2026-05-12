@@ -74,7 +74,7 @@ class _InfoCarouselState extends State<InfoCarousel> {
       children: [
         // ─── Carousel (Card) ────────────────────────────────────────────────
         SizedBox(
-          height: 200,
+          height: 230,
           child: PageView.builder(
             controller: _pageController,
             itemCount: _items.length,
