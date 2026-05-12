@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_input.dart';
+import '../services/auth_service.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
 import 'home_page.dart';
@@ -13,50 +14,87 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Controller untuk menangkap input
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  
+
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
   String? _emailError;
   String? _passwordError;
+  String? _generalError;
 
-  // Fungsi penanganan tombol login
-  void _handleLogin() {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // ─── Validasi input lokal ─────────────────────────────────────────────────
+  bool _validateInputs() {
+    final emailRegex = RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+$');
     setState(() {
-      // Validasi Email (Harus format tepat nama@gmail.com)
-      final emailRegex = RegExp(r'^[\w.+\-]+@gmail\.com$');
-      _emailError = !emailRegex.hasMatch(_emailController.text)
-          ? "*Email harus berformat nama@gmail.com"
+      _emailError = !emailRegex.hasMatch(_emailController.text.trim())
+          ? "*Format email tidak valid"
           : null;
-      _passwordError = _passwordController.text.trim().length < 6 
-          ? "*Password minimal 6 karakter" 
+      _passwordError = _passwordController.text.trim().length < 6
+          ? "*Password minimal 6 karakter"
           : null;
+      _generalError = null;
     });
+    return _emailError == null && _passwordError == null;
+  }
 
-    if (_emailError == null && _passwordError == null) {
-      print("Login berhasil: ${_emailController.text}");
-      
-      String email = _emailController.text;
-      String username = email.split('@')[0];
-      username = username[0].toUpperCase() + username.substring(1);
-      
+  // ─── Proses login via Supabase ────────────────────────────────────────────
+  Future<void> _handleLogin() async {
+    if (!_validateInputs()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final profile = await AuthService.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => HomePage(
-            userName: username,
-            userEmail: email,
+            userName: profile.name,
+            userEmail: profile.email,
+            userId: profile.id,
           ),
         ),
       );
+    } catch (e) {
+      // Tampilkan pesan error asli agar mudah diagnosa
+      final rawMsg = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _generalError = rawMsg;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Ubah pesan error Supabase menjadi pesan yang ramah pengguna.
+  String _parseError(String error) {
+    if (error.contains('Invalid login credentials')) {
+      return 'Email atau password salah.';
+    } else if (error.contains('Email not confirmed')) {
+      return 'Email belum diverifikasi.';
+    } else if (error.contains('network')) {
+      return 'Tidak ada koneksi internet.';
+    }
+    return 'Terjadi kesalahan, coba lagi.';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Menggunakan Container untuk background gradient seluruh layar
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -67,27 +105,21 @@ class _LoginPageState extends State<LoginPage> {
             radius: 1.2,
           ),
         ),
-        // LayoutBuilder & ConstrainedBox membuat konten bisa berada di tengah vertikal
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
-                    // Membuat seluruh elemen berada di tengah secara vertikal
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 20), // Spasi aman atas
-                      
-                      // 1. Header (Logo & Deskripsi)
+                      const SizedBox(height: 20),
                       _buildHeader(),
                       const SizedBox(height: 40),
 
-                      // 2. Input Email
+                      // Input Email
                       CustomInput(
                         label: "Alamat Email",
                         hintText: "nama@gmail.com",
@@ -97,7 +129,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // 3. Input Password
+                      // Input Password
                       CustomInput(
                         label: "Kata Sandi",
                         hintText: "Masukkan kata sandi",
@@ -105,22 +137,24 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _passwordController,
                         isPassword: true,
                         isVisible: _isPasswordVisible,
-                        onToggleVisibility: () => 
-                            setState(() => _isPasswordVisible = !_isPasswordVisible),
+                        onToggleVisibility: () => setState(
+                            () => _isPasswordVisible = !_isPasswordVisible),
                         errorText: _passwordError,
                       ),
-                      
-                      // 4. Link Lupa Password
+
+                      // Pesan error umum dari Supabase
+                      if (_generalError != null) ...[
+                        const SizedBox(height: 10),
+                        _buildErrorBanner(_generalError!),
+                      ],
+
                       _buildForgotPassword(),
                       const SizedBox(height: 30),
 
-                      // 5. Tombol Masuk
                       _buildLoginButton(),
                       const SizedBox(height: 20),
-
-                      // 6. Footer Daftar
                       _buildFooter(),
-                      const SizedBox(height: 20), // Spasi aman bawah
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -132,29 +166,51 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- Widget Components (Clean Code) ---
+  // ─── Widget Helpers ───────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Column(
       children: [
         Image.asset(
-          'assets/logo_tbc.png', 
-          height: 120, // Sesuaikan ukuran logo yang sudah ada teksnya
+          'assets/logo_tbc.png',
+          height: 120,
           errorBuilder: (context, error, stackTrace) => const Icon(
-            Icons.medical_services, size: 100, color: AppColors.primaryGreen
+            Icons.medical_services,
+            size: 100,
+            color: AppColors.primaryGreen,
           ),
         ),
         const SizedBox(height: 12),
         const Text(
           "Yuk lanjutkan perjalanan sehatmu hari ini.",
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey, 
-            fontSize: 14,
-            height: 1.4,
-          ),
+          style: TextStyle(color: Colors.grey, fontSize: 14, height: 1.4),
         ),
       ],
+    );
+  }
+
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade400, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -162,18 +218,14 @@ class _LoginPageState extends State<LoginPage> {
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
-          );
-        },
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+        ),
         child: const Text(
           "Lupa Password?",
           style: TextStyle(
-            color: AppColors.primaryGreen, 
-            fontWeight: FontWeight.bold
-          ),
+              color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -185,27 +237,43 @@ class _LoginPageState extends State<LoginPage> {
       height: 55,
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
+          gradient: _isLoading ? null : AppColors.buttonGradient,
+          color: _isLoading ? Colors.grey.shade300 : null,
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentGreen.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          boxShadow: _isLoading
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppColors.accentGreen.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
         ),
         child: ElevatedButton(
-          onPressed: _handleLogin,
+          onPressed: _isLoading ? null : _handleLogin,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           ),
-          child: const Text(
-            "Masuk",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : const Text(
+                  "Masuk",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
         ),
       ),
     );
@@ -217,18 +285,14 @@ class _LoginPageState extends State<LoginPage> {
       children: [
         const Text("Belum memiliki akun? "),
         GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => const RegisterPage())
-            );
-          },
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const RegisterPage()),
+          ),
           child: const Text(
             "Daftar Sekarang",
             style: TextStyle(
-              color: AppColors.primaryGreen, 
-              fontWeight: FontWeight.bold
-            ),
+                color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
           ),
         ),
       ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import 'login_page.dart';
+import 'home_page.dart';
 import 'dart:async';
+import '../services/auth_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -18,13 +20,14 @@ class _SplashPageState extends State<SplashPage> {
     "Pantau kesehatanmu hari ini, nikmati hidup sehatmu esok hari",
   ];
 
-  late Timer _timer;
+  late Timer _quoteTimer;
 
   @override
   void initState() {
     super.initState();
-    // Rotate quotes every 1.5 seconds
-    _timer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
+
+    // Rotasi quote setiap 1.5 detik
+    _quoteTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
       if (mounted) {
         setState(() {
           _quoteIndex = (_quoteIndex + 1) % _quotes.length;
@@ -32,20 +35,53 @@ class _SplashPageState extends State<SplashPage> {
       }
     });
 
-    // Navigate to Login after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
+    // Cek sesi aktif lalu navigasi setelah 3 detik
+    Future.delayed(const Duration(seconds: 3), _checkSessionAndNavigate);
+  }
+
+  /// Cek apakah user sudah login. Jika iya, langsung ke HomePage.
+  /// Jika tidak, arahkan ke LoginPage.
+  Future<void> _checkSessionAndNavigate() async {
+    if (!mounted) return;
+
+    try {
+      final profile = await AuthService.getCurrentProfile();
+
+      if (!mounted) return;
+
+      if (profile != null) {
+        // Sesi aktif — langsung masuk ke HomePage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(
+              userName: profile.name,
+              userEmail: profile.email,
+              userId: profile.id,
+            ),
+          ),
+        );
+      } else {
+        // Tidak ada sesi — arahkan ke LoginPage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    } catch (_) {
+      // Jika ada error, tetap arahkan ke LoginPage
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
         );
       }
-    });
+    }
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _quoteTimer.cancel();
     super.dispose();
   }
 
@@ -66,10 +102,8 @@ class _SplashPageState extends State<SplashPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Spacer(flex: 3),
-            // Logo Section
             _buildLogo(),
             const SizedBox(height: 20),
-            // Slogan
             const Text(
               "Pantau. Patuh. Pulih.",
               style: TextStyle(
@@ -79,7 +113,6 @@ class _SplashPageState extends State<SplashPage> {
               ),
             ),
             const Spacer(flex: 2),
-            // Loading Indicator
             const SizedBox(
               width: 50,
               height: 50,
@@ -89,7 +122,6 @@ class _SplashPageState extends State<SplashPage> {
               ),
             ),
             const Spacer(flex: 2),
-            // Motivational Quotes
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: AnimatedSwitcher(
@@ -120,7 +152,6 @@ class _SplashPageState extends State<SplashPage> {
         Stack(
           alignment: Alignment.center,
           children: [
-            // Medical Cross/Bandage Icon Representation
             Container(
               width: 80,
               height: 80,
@@ -128,13 +159,8 @@ class _SplashPageState extends State<SplashPage> {
                 color: const Color(0xFF00A355),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 60,
-              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 60),
             ),
-            // Sub-elements to make it look like a bandage (simplified)
             ...List.generate(4, (index) {
               return Positioned(
                 left: index % 2 == 0 ? 15 : null,

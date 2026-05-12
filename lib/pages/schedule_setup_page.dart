@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_button.dart';
+import '../services/schedule_service.dart';
 
 class ScheduleSetupPage extends StatefulWidget {
   const ScheduleSetupPage({super.key});
@@ -46,7 +47,7 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
     super.dispose();
   }
 
-  void _saveSchedule() {
+  Future<void> _saveSchedule() async {
     // Validasi: jika "Pilih Hari", minimal 1 hari harus dipilih
     if (!_isDaily && !_selectedDays.contains(true)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,7 +64,6 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
     final startText = _startController.text.trim();
     final targetText = _targetController.text.trim();
 
-    // Validasi: kedua field wajib diisi
     if (startText.isEmpty || targetText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -79,7 +79,6 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
     final startDay = int.tryParse(startText);
     final targetDay = int.tryParse(targetText);
 
-    // Validasi: harus angka
     if (startDay == null || targetDay == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -92,7 +91,6 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
       return;
     }
 
-    // Validasi: hari mulai harus lebih kecil dari hari target
     if (startDay >= targetDay) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -105,11 +103,49 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
       return;
     }
 
-    // Kembalikan data jadwal ke HomePage
-    Navigator.pop(context, {
-      'startDay': startDay,
-      'targetDay': targetDay,
-    });
+    // Format waktu pengingat (misal: "08:00 AM")
+    final hour = _selectedHour.toString().padLeft(2, '0');
+    final minute = _selectedMinute.toString().padLeft(2, '0');
+    final period = _isAM ? 'AM' : 'PM';
+    final reminderTime = '$hour:$minute $period';
+
+    // Daftar hari yang dipilih (jika mode pilih hari)
+    final selectedDayLabels = _isDaily
+        ? <String>[]
+        : [
+            for (int i = 0; i < _selectedDays.length; i++)
+              if (_selectedDays[i]) _dayLabels[i]
+          ];
+
+    try {
+      // Simpan jadwal ke Supabase
+      await ScheduleService.saveSchedule(
+        startDay: startDay,
+        targetDay: targetDay,
+        reminderTime: _reminderOn ? reminderTime : null,
+        isDaily: _isDaily,
+        selectedDays: selectedDayLabels,
+      );
+
+      if (mounted) {
+        // Kembalikan data jadwal ke HomePage
+        Navigator.pop(context, {
+          'startDay': startDay,
+          'targetDay': targetDay,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan jadwal: ${e.toString()}'),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_button.dart';
+import '../services/checkup_service.dart';
 
 class DailyCheckupPage extends StatefulWidget {
   const DailyCheckupPage({super.key});
@@ -114,7 +115,7 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
     }
   }
 
-  void _handleAnswer(bool answer) async {
+  Future<void> _handleAnswer(bool answer) async {
     HapticFeedback.lightImpact();
     setState(() {
       _answers[_currentStep] = answer;
@@ -123,7 +124,8 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
     if (_currentStep < _questions.length - 1) {
       setState(() {
         _currentStep++;
-        _selectedAnswer = _answers.containsKey(_currentStep) ? _answers[_currentStep] : null;
+        _selectedAnswer =
+            _answers.containsKey(_currentStep) ? _answers[_currentStep] : null;
       });
     } else {
       bool isCritical = false;
@@ -138,19 +140,31 @@ class _DailyCheckupPageState extends State<DailyCheckupPage> {
         }
       }
 
-      await _processAndShowResult(isCritical: isCritical, hasWarning: hasAnyWarning);
+      await _processAndShowResult(
+          isCritical: isCritical, hasWarning: hasAnyWarning);
     }
   }
 
-  Future<void> _processAndShowResult({required bool isCritical, bool hasWarning = false}) async {
-    setState(() {
-      _isAnalyzing = true;
-    });
+  Future<void> _processAndShowResult(
+      {required bool isCritical, bool hasWarning = false}) async {
+    setState(() => _isAnalyzing = true);
 
-    await Future.delayed(const Duration(milliseconds: 1500));
-    
+    // Simpan hasil checkup ke Supabase (jalankan paralel dengan animasi loading)
+    final namedAnswers = <String, bool>{
+      for (int i = 0; i < _questions.length; i++)
+        (_questions[i]['id'] as String): _answers[i] ?? false,
+    };
+
+    await Future.wait([
+      CheckupService.saveCheckup(
+        answers: namedAnswers,
+        isCritical: isCritical,
+        hasWarning: hasWarning,
+      ),
+      Future.delayed(const Duration(milliseconds: 1500)),
+    ]);
+
     if (!mounted) return;
-
     _showResult(isCritical: isCritical, hasWarning: hasWarning);
   }
 

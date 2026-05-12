@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:tbc/pages/splash_page.dart';
+import 'services/supabase_service.dart';
 
-void main() {
+void main() async {
+  // Pastikan Flutter binding sudah siap sebelum memanggil kode asinkron
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Supabase sekali di awal aplikasi
+  await SupabaseService.initialize();
+
   runApp(const MyApp());
 }
 

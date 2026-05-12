@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_input.dart';
+import '../services/auth_service.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 
@@ -12,73 +13,114 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // 1. Controller untuk mengambil input user (SRP)
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // 2. State untuk menyembunyikan/menampilkan password
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isLoading = false;
 
-  // 3. State untuk menyimpan pesan error (sesuai UI Figma)
   String? _nameError;
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
+  String? _generalError;
 
-  // 4. Fungsi Validasi Sederhana (Clean Code: Logika dipisah dari UI)
-  void _handleRegister() {
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // ─── Validasi input lokal ─────────────────────────────────────────────────
+  bool _validateInputs() {
+    final emailRegex = RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+$');
     setState(() {
-      // Validasi Nama Lengkap
-      _nameError = _nameController.text.trim().isEmpty ? "*Harus Menggunakan Karakter" : null;
-      
-      // Validasi Email (Harus format tepat nama@gmail.com)
-      final emailRegex = RegExp(r'^[\w.+\-]+@gmail\.com$');
-      _emailError = !emailRegex.hasMatch(_emailController.text)
-          ? "*Email harus berformat nama@gmail.com"
+      _nameError = _nameController.text.trim().isEmpty
+          ? "*Nama tidak boleh kosong"
           : null;
-      
-      // Validasi Kata Sandi (Cek minimal 6 karakter)
-      _passwordError = _passwordController.text.trim().length < 6 
-          ? "*Kata Sandi minimal 6 karakter" 
+      _emailError = !emailRegex.hasMatch(_emailController.text.trim())
+          ? "*Format email tidak valid"
           : null;
-      
-      // Validasi Konfirmasi Kata Sandi (Cek kecocokan)
-      _confirmPasswordError = _confirmPasswordController.text != _passwordController.text 
-          ? "*Kata Sandi Tidak Cocok" 
+      _passwordError = _passwordController.text.trim().length < 6
+          ? "*Kata sandi minimal 6 karakter"
           : null;
+      _confirmPasswordError =
+          _confirmPasswordController.text != _passwordController.text
+              ? "*Kata sandi tidak cocok"
+              : null;
+      _generalError = null;
     });
+    return _nameError == null &&
+        _emailError == null &&
+        _passwordError == null &&
+        _confirmPasswordError == null;
+  }
 
-    // Jika tidak ada error sama sekali, lanjutkan proses
-    if (_nameError == null && _emailError == null && 
-        _passwordError == null && _confirmPasswordError == null) {
-      print("Proses Registrasi Berhasil untuk: ${_nameController.text}");
+  // ─── Proses register via Supabase ─────────────────────────────────────────
+  Future<void> _handleRegister() async {
+    if (!_validateInputs()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final profile = await AuthService.signUp(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => HomePage(
-            userName: _nameController.text,
-            userEmail: _emailController.text,
+            userName: profile.name,
+            userEmail: profile.email,
+            userId: profile.id,
           ),
         ),
       );
+    } catch (e) {
+      // Tampilkan pesan error asli agar mudah diagnosa
+      final rawMsg = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _generalError = rawMsg;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Ubah pesan error Supabase menjadi pesan ramah pengguna.
+  String _parseError(String error) {
+    if (error.contains('already registered') ||
+        error.contains('already been registered')) {
+      return 'Email sudah terdaftar. Silakan login.';
+    } else if (error.contains('password')) {
+      return 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+    } else if (error.contains('network')) {
+      return 'Tidak ada koneksi internet.';
+    }
+    return 'Terjadi kesalahan, coba lagi.';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Container utama untuk menampung background gradien
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          // Gradien radial lembut seperti di Figma
           gradient: RadialGradient(
             colors: [AppColors.lightGreen, Colors.white],
-            center: Alignment(0, -0.6), // Pusat gradien agak ke atas
+            center: Alignment(0, -0.6),
             radius: 1.2,
           ),
         ),
@@ -87,13 +129,9 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             children: [
               const SizedBox(height: 60),
-              
-              // 1. Header (Logo & Teks Ajakan)
               _buildHeader(),
               const SizedBox(height: 30),
 
-              // 2. Form Input - Menggunakan Widget Reusable CustomInput (Clean Code)
-              
               // Input Nama Lengkap
               CustomInput(
                 label: "Nama Lengkap",
@@ -104,7 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 15),
 
-              // Input Alamat Email
+              // Input Email
               CustomInput(
                 label: "Alamat Email",
                 hintText: "name@gmail.com",
@@ -122,7 +160,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 isPassword: true,
                 isVisible: _isPasswordVisible,
-                onToggleVisibility: () => 
+                onToggleVisibility: () =>
                     setState(() => _isPasswordVisible = !_isPasswordVisible),
                 errorText: _passwordError,
               ),
@@ -136,19 +174,22 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _confirmPasswordController,
                 isPassword: true,
                 isVisible: _isConfirmPasswordVisible,
-                onToggleVisibility: () => 
-                    setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                onToggleVisibility: () => setState(
+                    () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
                 errorText: _confirmPasswordError,
               ),
-              const SizedBox(height: 30),
 
-              // 3. Tombol Daftar
+              // Error banner dari Supabase
+              if (_generalError != null) ...[
+                const SizedBox(height: 15),
+                _buildErrorBanner(_generalError!),
+              ],
+
+              const SizedBox(height: 30),
               _buildRegisterButton(),
               const SizedBox(height: 20),
-
-              // 4. Footer (Navigasi ke halaman Masuk)
               _buildFooter(),
-              const SizedBox(height: 40), // Spasi bawah agar tidak mentok
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -156,17 +197,19 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // --- Widget Helper untuk Build Method yang Clean ---
+  // ─── Widget Helpers ───────────────────────────────────────────────────────
 
-  // Bagian Header: Logo, Nama Aplikasi, Teks Deskripsi
   Widget _buildHeader() {
     return Column(
       children: [
         Image.asset(
-          'assets/logo_tbc.png', // Pastikan logo sudah didaftarkan di pubspec.yaml
+          'assets/logo_tbc.png',
           height: 100,
-          errorBuilder: (context, error, stackTrace) => 
-            const Icon(Icons.medical_services, size: 80, color: AppColors.primaryGreen),
+          errorBuilder: (context, error, stackTrace) => const Icon(
+            Icons.medical_services,
+            size: 80,
+            color: AppColors.primaryGreen,
+          ),
         ),
         const SizedBox(height: 8),
         const Text(
@@ -178,60 +221,92 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Bagian Tombol Daftar berwarna hijau full width
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade400, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRegisterButton() {
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
+          gradient: _isLoading ? null : AppColors.buttonGradient,
+          color: _isLoading ? Colors.grey.shade300 : null,
           borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentGreen.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          boxShadow: _isLoading
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppColors.accentGreen.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
         ),
         child: ElevatedButton(
-          onPressed: _handleRegister,
+          onPressed: _isLoading ? null : _handleRegister,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25)),
           ),
-          child: const Text(
-            "Daftar",
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : const Text(
+                  "Daftar",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold),
+                ),
         ),
       ),
     );
   }
 
-  // Bagian Footer: "Sudah memiliki akun? Masuk"
   Widget _buildFooter() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          "Sudah memiliki akun? ",
-          style: TextStyle(fontSize: 14),
-        ),
+        const Text("Sudah memiliki akun? ", style: TextStyle(fontSize: 14)),
         GestureDetector(
-          onTap: () {
-            // Kembali ke halaman Login
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => const LoginPage())
-            );
-          },
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          ),
           child: const Text(
             "Masuk",
             style: TextStyle(
-              color: AppColors.primaryGreen, 
+              color: AppColors.primaryGreen,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),

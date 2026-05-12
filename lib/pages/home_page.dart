@@ -3,6 +3,10 @@ import '../constants/colors.dart';
 import '../widgets/streak_card.dart';
 import '../widgets/medication_card.dart';
 import '../widgets/info_carousel.dart';
+import '../services/schedule_service.dart';
+import '../services/medication_service.dart';
+import '../services/profile_service.dart';
+import '../models/schedule_model.dart';
 import 'schedule_setup_page.dart';
 import 'calendar_history_page.dart';
 import 'profile_settings_page.dart';
@@ -11,7 +15,8 @@ import 'daily_checkup_page.dart';
 class HomePage extends StatefulWidget {
   final String? userName;
   final String? userEmail;
-  const HomePage({super.key, this.userName, this.userEmail});
+  final String? userId;
+  const HomePage({super.key, this.userName, this.userEmail, this.userId});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -20,6 +25,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   String? _statusMessage;
+
+  // ─── Profile state ─────────────────────────────────────────────────────────
+  String _currentName = '';
+  String _currentEmail = '';
+  String? _currentAvatarUrl;
 
   // ─── Streak state ──────────────────────────────────────────────────────────
   int _streakDays = 0;
@@ -32,11 +42,91 @@ class _HomePageState extends State<HomePage> {
   bool _isTaken = false;
   Set<DateTime> _takenDates = {};
   DateTime? _scheduleStartDate;
+  bool _isLoadingSchedule = true;
 
-  double get _percentage => (((_currentDay - 1 + (_isTaken ? 1 : 0)) / _totalDays) * 100).clamp(0, 100);
+  double get _percentage =>
+      (((_currentDay - 1 + (_isTaken ? 1 : 0)) / _totalDays) * 100)
+          .clamp(0, 100);
 
+  @override
+  void initState() {
+    super.initState();
+    _currentName = widget.userName ?? 'Pengguna';
+    _currentEmail = widget.userEmail ?? '';
+    _loadProfileData();
+    _loadScheduleFromDatabase();
+    _loadMedicationData();
+  }
+
+  // ─── Load profil terkini ──────────────────────────────────────────────────
+  Future<void> _loadProfileData() async {
+    try {
+      final profile = await ProfileService.getProfile();
+      if (mounted && profile != null) {
+        setState(() {
+          _currentName = profile.name;
+          _currentEmail = profile.email;
+          _currentAvatarUrl = profile.avatarUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  // ─── Load data minum obat (Streak) ─────────────────────────────────────────
+  Future<void> _loadMedicationData() async {
+    try {
+      final history = await MedicationService.getMedicationHistory();
+      final streak = await MedicationService.calculateCurrentStreak();
+      
+      if (!mounted) return;
+
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      bool takenToday = history.any((d) => 
+        d.year == todayDate.year && d.month == todayDate.month && d.day == todayDate.day);
+
+      // Hitung 6 hari ke belakang untuk completionHistory
+      List<bool> recentHistory = [];
+      for (int i = 0; i < 6; i++) {
+        DateTime checkDate = todayDate.subtract(Duration(days: i));
+        bool found = history.any((d) => 
+          d.year == checkDate.year && d.month == checkDate.month && d.day == checkDate.day);
+        recentHistory.add(found);
+      }
+
+      setState(() {
+        _streakDays = streak;
+        _isTaken = takenToday;
+        _takenDates = history.toSet();
+        _completionHistory = recentHistory;
+      });
+    } catch (e) {
+      debugPrint('Error loading medication data: $e');
+    }
+  }
+
+  // ─── Load jadwal dari Supabase ─────────────────────────────────────────────
+  Future<void> _loadScheduleFromDatabase() async {
+    try {
+      final schedule = await ScheduleService.getActiveSchedule();
+      if (mounted && schedule != null) {
+        setState(() {
+          _scheduleSet = true;
+          _currentDay = schedule.startDay;
+          _totalDays = schedule.targetDay;
+          _scheduleStartDate = schedule.createdAt;
+        });
+      }
+    } catch (e) {
+      // Gagal load jadwal — tampilkan card setup jadwal
+    } finally {
+      if (mounted) setState(() => _isLoadingSchedule = false);
+    }
+  }
+
+  // ─── Buka halaman setup jadwal ────────────────────────────────────────────
   void _openScheduleSetup() async {
-    // Tampilkan dialog konfirmasi jika jadwal sudah pernah di-set (artinya sedang mengedit)
     if (_scheduleSet) {
       final confirm = await showDialog<bool>(
         context: context,
@@ -59,15 +149,16 @@ class _HomePageState extends State<HomePage> {
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF006D37),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text("Ya, Edit", style: TextStyle(color: Colors.white)),
+              child: const Text("Ya, Edit",
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       );
-
-      if (confirm != true) return; // Batalkan jika tidak memilih "Ya"
+      if (confirm != true) return;
     }
 
     final result = await Navigator.push<Map<String, dynamic>>(
@@ -84,31 +175,53 @@ class _HomePageState extends State<HomePage> {
         _scheduleStartDate = DateTime.now();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Jadwal berhasil disimpan! 🎉'),
-          backgroundColor: const Color(0xFF40916C),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Jadwal berhasil disimpan! 🎉'),
+            backgroundColor: const Color(0xFF40916C),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
     }
   }
 
   // ─── Konfirmasi minum obat hari ini ───────────────────────────────────────
-  void _confirmMedication() {
+  Future<void> _confirmMedication() async {
     final today = DateTime.now();
+    
+    // Optimistic UI update
     setState(() {
       _isTaken = true;
       _streakDays += 1;
       _statusMessage = "success";
-      _takenDates = {..._takenDates, DateTime(today.year, today.month, today.day)};
-      // Geser history & tandai hari ini selesai
-      _completionHistory = [
-        true,
-        ..._completionHistory.take(5),
-      ];
+      _takenDates = {
+        ..._takenDates,
+        DateTime(today.year, today.month, today.day)
+      };
+      _completionHistory = [true, ..._completionHistory.take(5)];
     });
+
+    try {
+      await MedicationService.logMedication(today);
+    } catch (e) {
+      // Revert if failed
+      if (mounted) {
+        setState(() {
+          _isTaken = false;
+          _streakDays -= 1;
+          _statusMessage = null;
+          _takenDates.remove(DateTime(today.year, today.month, today.day));
+          _completionHistory[0] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan riwayat: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -136,7 +249,8 @@ class _HomePageState extends State<HomePage> {
                         scheduleStartDate: _scheduleStartDate,
                       )
                     : SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 25),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 25),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -144,10 +258,11 @@ class _HomePageState extends State<HomePage> {
                             _buildHeader(),
                             const SizedBox(height: 20),
                             if (_statusMessage != null) _buildStatusBanner(),
-                            if (_statusMessage != null) const SizedBox(height: 10),
+                            if (_statusMessage != null)
+                              const SizedBox(height: 10),
                             _buildGreeting(),
                             const SizedBox(height: 25),
-                            
+
                             // Streak Card
                             StreakCard(
                               streakDays: _streakDays,
@@ -155,8 +270,10 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 25),
 
-                            // Card Jadwal / MedicationCard
-                            if (!_scheduleSet)
+                            // Card Jadwal / Loading / Setup
+                            if (_isLoadingSchedule)
+                              _buildLoadingScheduleCard()
+                            else if (!_scheduleSet)
                               _buildSetupScheduleCard()
                             else
                               MedicationCard(
@@ -164,7 +281,7 @@ class _HomePageState extends State<HomePage> {
                                 totalDays: _totalDays,
                                 percentage: _percentage,
                                 isTaken: _isTaken,
-                                onSeeAllPressed: _openScheduleSetup, // Sekarang membuka edit jadwal
+                                onSeeAllPressed: _openScheduleSetup,
                                 onActionPressed: _confirmMedication,
                               ),
 
@@ -185,6 +302,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ─── Loading skeleton jadwal ───────────────────────────────────────────────
+  Widget _buildLoadingScheduleCard() {
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF40916C),
+          strokeWidth: 2,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSetupScheduleCard() {
     return GestureDetector(
       onTap: _openScheduleSetup,
@@ -192,7 +327,7 @@ class _HomePageState extends State<HomePage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF2ECC71).withOpacity(0.05), // Hijau 5% sesuai permintaan
+          color: const Color(0xFF2ECC71).withOpacity(0.05),
           borderRadius: BorderRadius.circular(25),
         ),
         child: Column(
@@ -211,7 +346,8 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF1B4332), width: 2.5),
+                border:
+                    Border.all(color: const Color(0xFF1B4332), width: 2.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.add, size: 30, color: Color(0xFF1B4332)),
@@ -220,10 +356,9 @@ class _HomePageState extends State<HomePage> {
             const Text(
               "Tambah Jadwal Pertama",
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1B4332),
-              ),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1B4332)),
             ),
           ],
         ),
@@ -231,7 +366,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─── Card Checkup Harian ──────────────────────────────────────────────────
   Widget _buildCheckupCard() {
     return Container(
       width: double.infinity,
@@ -249,35 +383,36 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   "Pantau Kondisi Harian",
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 5),
                 Text(
                   "Cek gejala Anda hari ini untuk memastikan pemulihan berjalan lancar.",
-                  style: TextStyle(color: Color(0xFFD1F2E1), fontSize: 12),
+                  style:
+                      TextStyle(color: Color(0xFFD1F2E1), fontSize: 12),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 15),
           ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DailyCheckupPage()),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const DailyCheckupPage()),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF40916C),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)),
               elevation: 0,
             ),
             child: const Text(
               "Mulai",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -285,24 +420,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─── Banner status minum obat ─────────────────────────────────────────────
   Widget _buildStatusBanner() {
     bool isSuccess = _statusMessage == "success";
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       decoration: BoxDecoration(
-        color: isSuccess ? const Color(0xFF2DC653) : const Color(0xFFD91E18),
+        color: isSuccess
+            ? const Color(0xFF2DC653)
+            : const Color(0xFFD91E18),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration:
+                const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
             child: Icon(
               isSuccess ? Icons.check : Icons.close,
-              color: isSuccess ? const Color(0xFF2DC653) : const Color(0xFFD91E18),
+              color: isSuccess
+                  ? const Color(0xFF2DC653)
+                  : const Color(0xFFD91E18),
               size: 16,
             ),
           ),
@@ -314,8 +453,9 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   isSuccess ? "Berhasil!" : "Gagal!",
                   style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14,
-                  ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14),
                 ),
                 Text(
                   isSuccess
@@ -335,7 +475,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -347,8 +486,9 @@ class _HomePageState extends State<HomePage> {
             Text(
               "TBC-Tracker",
               style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B4332),
-              ),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B4332)),
             ),
           ],
         ),
@@ -358,59 +498,72 @@ class _HomePageState extends State<HomePage> {
               context,
               MaterialPageRoute(
                 builder: (context) => ProfileSettingsPage(
-                  initialName: widget.userName ?? "Dinda",
-                  initialEmail: widget.userEmail ?? "dinda@email.com",
+                  initialName: _currentName,
+                  initialEmail: _currentEmail,
+                  userId: widget.userId ?? "",
                 ),
               ),
             );
-            
+
+            // Re-fetch profile data just in case it was updated
+            if (mounted) {
+              await _loadProfileData();
+            }
+
             if (result != null && mounted) {
               setState(() {
                 _currentDay = result['startDay'] as int;
                 _totalDays = result['targetDay'] as int;
               });
-              
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Jadwal berhasil diperbarui!'),
                   backgroundColor: const Color(0xFF2DC653),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               );
             }
           },
-          child: const CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFF1B4332),
-            child: Icon(Icons.person, color: Colors.white, size: 20),
-          ),
+          child: _currentAvatarUrl != null
+              ? CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFF1B4332),
+                  backgroundImage: NetworkImage(_currentAvatarUrl!),
+                )
+              : const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Color(0xFF1B4332),
+                  child: Icon(Icons.person, color: Colors.white, size: 20),
+                ),
         ),
       ],
     );
   }
 
-  // ─── Greeting ─────────────────────────────────────────────────────────────
   Widget _buildGreeting() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Selamat Pagi, ${widget.userName ?? 'Dinda'}",
+          "Selamat Pagi, $_currentName",
           style: const TextStyle(
-            fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1B4332),
-          ),
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1B4332)),
         ),
         const SizedBox(height: 4),
         const Text(
           "Yuk fokus pada pemulihan hari ini.",
-          style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
         ),
       ],
     );
   }
 
-  // ─── Bottom Nav ───────────────────────────────────────────────────────────
   Widget _buildBottomNavigation() {
     return Container(
       margin: const EdgeInsets.all(20),
@@ -434,15 +587,12 @@ class _HomePageState extends State<HomePage> {
     bool isActive = _currentIndex == index;
     return GestureDetector(
       onTap: () {
-        if (index == 1) {
-          // Ganti ke tab Kalender (tanpa push page)
-          setState(() => _currentIndex = index);
-        } else if (index == 2) {
-          // Buka Halaman Checkup
+        if (index == 2) {
           setState(() => _currentIndex = index);
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const DailyCheckupPage()),
+            MaterialPageRoute(
+                builder: (context) => const DailyCheckupPage()),
           ).then((_) {
             if (mounted) setState(() => _currentIndex = 0);
           });
@@ -457,7 +607,9 @@ class _HomePageState extends State<HomePage> {
             : null,
         child: Icon(
           icon,
-          color: isActive ? const Color(0xFF1B4332) : Colors.white.withOpacity(0.6),
+          color: isActive
+              ? const Color(0xFF1B4332)
+              : Colors.white.withOpacity(0.6),
           size: 28,
         ),
       ),
