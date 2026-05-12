@@ -103,8 +103,8 @@ class _HomePageState extends State<HomePage> {
       _takenDates = {..._takenDates, DateTime(today.year, today.month, today.day)};
       // Geser history & tandai hari ini selesai
       _completionHistory = [
-        ..._completionHistory.skip(1),
         true,
+        ..._completionHistory.take(5),
       ];
     });
   }
