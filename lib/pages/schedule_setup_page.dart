@@ -430,7 +430,7 @@ class _ScheduleSetupPageState extends State<ScheduleSetupPage> {
         Switch(
           value: _reminderOn,
           onChanged: (val) => setState(() => _reminderOn = val),
-          activeColor: const Color(0xFF40916C),
+          activeThumbColor: const Color(0xFF40916C),
         ),
       ],
     );

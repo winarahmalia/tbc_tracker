@@ -50,8 +50,7 @@ class _HomePageState extends State<HomePage> {
   double get _percentage {
     final total = _totalDays;
     if (total <= 0) return 0;
-    return (((_currentDay - 1 + (_isTaken ? 1 : 0)) / total) * 100)
-        .clamp(0, 100);
+    return ((_takenDates.length / total) * 100).clamp(0, 100);
   }
 
   @override
@@ -60,8 +59,67 @@ class _HomePageState extends State<HomePage> {
     _currentName = widget.userName ?? 'Pengguna';
     _currentEmail = widget.userEmail ?? '';
     _loadProfileData();
-    _loadScheduleFromDatabase();
-    _loadMedicationData();
+    _initialLoad();
+  }
+
+  Future<void> _initialLoad() async {
+    await _loadScheduleFromDatabase();
+    await _loadMedicationData();
+    if (mounted) await _checkMissedMedication();
+  }
+
+  Future<void> _checkMissedMedication() async {
+    try {
+      final missed = await MedicationService.checkAndResetIfMissed();
+      if (missed && mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: 28),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Pengobatan Terlewat!",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1B4332),
+                        fontSize: 20),
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              "Anda terlewat minum obat, mulai ulang",
+              style: TextStyle(color: Colors.grey, fontSize: 15),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF006D37),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text("Mulai Ulang",
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+        // Reload semua data setelah reset
+        await _loadScheduleFromDatabase();
+        await _loadMedicationData();
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Error checking missed medication: $e');
+    }
   }
 
   // ─── Load profil terkini ──────────────────────────────────────────────────
@@ -112,6 +170,7 @@ class _HomePageState extends State<HomePage> {
         _isTaken = takenToday;
         _takenDates = history.toSet();
         _completionHistory = recentHistory;
+        _currentDay = history.length;
       });
     } catch (e) {
       debugPrint('Error loading medication data, fallback ke cache: $e');
@@ -152,20 +211,9 @@ class _HomePageState extends State<HomePage> {
         _isTaken = takenToday;
         _takenDates = history.toSet();
         _completionHistory = recentHistory;
+        _currentDay = history.length;
       });
     }
-  }
-
-  // ─── Hitung hari ke berapa sekarang sejak jadwal dimulai ────────────────
-  int _calculateCurrentDay(ScheduleModel schedule) {
-    final now = DateTime.now();
-    final startDate = schedule.createdAt;
-    final daysElapsed = now.difference(startDate).inDays;
-    final computedDay = schedule.startDay + daysElapsed;
-
-    // Tidak boleh kurang dari startDay
-    if (computedDay < schedule.startDay) return schedule.startDay;
-    return computedDay;
   }
 
   // ─── Cek apakah hari ini termasuk jadwal minum (untuk mode pilih hari) ──
@@ -185,13 +233,13 @@ class _HomePageState extends State<HomePage> {
     try {
       final schedule = await ScheduleService.getActiveSchedule();
       if (mounted && schedule != null) {
-        final currentDay = _calculateCurrentDay(schedule);
         final isMedicationDay = _isTodayMedicationDay(schedule);
-        final isCompleted = currentDay > schedule.targetDay;
+        final isCompleted = _takenDates.length > schedule.targetDay &&
+            schedule.targetDay > 0;
 
         setState(() {
           _scheduleSet = true;
-          _currentDay = currentDay;
+          _currentDay = _takenDates.length;
           _totalDays = schedule.targetDay;
           _scheduleStartDate = schedule.createdAt;
           _isMedicationDay = isMedicationDay;
@@ -279,7 +327,8 @@ class _HomePageState extends State<HomePage> {
         ..._takenDates,
         DateTime(today.year, today.month, today.day)
       };
-      _completionHistory = [true, ..._completionHistory.take(5)];
+      _currentDay = _takenDates.length;
+      _completionHistory = [true, ..._completionHistory.sublist(1)];
     });
 
     try {
@@ -292,6 +341,7 @@ class _HomePageState extends State<HomePage> {
           _streakDays -= 1;
           _statusMessage = null;
           _takenDates.remove(DateTime(today.year, today.month, today.day));
+          _currentDay = _takenDates.length;
           _completionHistory[0] = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +374,8 @@ class _HomePageState extends State<HomePage> {
                         isTaken: _isTaken,
                         takenDates: _takenDates,
                         scheduleStartDate: _scheduleStartDate,
+                        currentDay: _currentDay,
+                        totalDays: _totalDays,
                       )
                     : SingleChildScrollView(
                         padding:
@@ -511,11 +563,12 @@ class _HomePageState extends State<HomePage> {
                   color: Color(0xFF1B4332),
                 ),
               ),
-              IconButton(
-                onPressed: _openScheduleSetup,
-                icon: const Icon(Icons.edit_outlined, color: Color(0xFF006D37), size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              GestureDetector(
+                onTap: _openScheduleSetup,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(Icons.edit_outlined, color: Color(0xFF006D37), size: 20),
+                ),
               ),
             ],
           ),

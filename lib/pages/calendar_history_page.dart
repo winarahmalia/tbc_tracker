@@ -5,6 +5,8 @@ class CalendarHistoryPage extends StatefulWidget {
   final Set<DateTime> takenDates;
   final DateTime? scheduleStartDate;
   final bool isTab;
+  final int currentDay;
+  final int totalDays;
 
   const CalendarHistoryPage({
     super.key,
@@ -12,6 +14,8 @@ class CalendarHistoryPage extends StatefulWidget {
     this.takenDates = const {},
     this.scheduleStartDate,
     this.isTab = false,
+    this.currentDay = 0,
+    this.totalDays = 0,
   });
 
   @override
@@ -148,7 +152,9 @@ class _CalendarHistoryPageState extends State<CalendarHistoryPage> {
     ];
 
     // Tambahin null di belakang supaya genap 7 kolom
-    while (slots.length % 7 != 0) slots.add(null);
+    while (slots.length % 7 != 0) {
+      slots.add(null);
+    }
 
     final rows = <List<int?>>[];
     for (int i = 0; i < slots.length; i += 7) {
@@ -271,20 +277,43 @@ class _CalendarHistoryPageState extends State<CalendarHistoryPage> {
 
   // ─── Status Bawah ─────────────────────────────────────────────────────────
   Widget _buildStatusSection() {
+    final remaining = widget.totalDays - widget.currentDay;
+    final hasSchedule = widget.totalDays > 0;
+
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text("Waktu",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            Text(
-              widget.isTaken ? "Hari ini" : "-",
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
+        if (hasSchedule) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Hari ini",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              Text(
+                "Hari ke ${widget.currentDay}",
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Sisa hari",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              Text(
+                remaining > 0 ? "$remaining hari lagi" : "Selesai!",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: remaining > 0
+                      ? const Color(0xFF006D37)
+                      : const Color(0xFF2ECC71),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 15),

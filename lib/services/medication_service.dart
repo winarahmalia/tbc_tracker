@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'supabase_service.dart';
+import 'schedule_service.dart';
+import 'cache_service.dart';
+import '../models/schedule_model.dart';
 
 /// Service untuk mencatat dan mengambil data riwayat minum obat harian
 class MedicationService {
@@ -83,5 +86,72 @@ class MedicationService {
     }
 
     return streak;
+  }
+
+  // ─── Reset progres jika terlewat ─────────────────────────────────────────
+  /// Menghapus semua riwayat minum obat dan mereset jadwal ke hari pertama.
+  static Future<void> resetProgress() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    // Hapus semua log medication
+    await _client
+        .from('medication_logs')
+        .delete()
+        .eq('user_id', userId);
+    debugPrint('[MedicationService] All medication logs deleted');
+
+    // Reset jadwal: update created_at ke sekarang agar hitungan hari restart
+    await _client
+        .from('schedules')
+        .update({'created_at': DateTime.now().toIso8601String()})
+        .eq('user_id', userId);
+    debugPrint('[MedicationService] Schedule reset to day 1');
+
+    // Hapus cache lokal agar reload pakai data baru
+    await CacheService.clearScheduleCache();
+    await CacheService.cacheTakenDates([]);
+    await CacheService.cacheStreak(0);
+  }
+
+  // ─── Cek apakah kemarin terlewat ─────────────────────────────────────────
+  /// Memeriksa apakah user melewatkan minum obat kemarin.
+  /// Jika iya, otomatis reset progres dan return true.
+  static Future<bool> checkAndResetIfMissed() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    // Ambil jadwal aktif
+    final schedule = await ScheduleService.getActiveSchedule();
+    if (schedule == null) return false;
+
+    // Tentukan hari kemarin
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+
+    // Cek apakah kemarin termasuk hari minum obat
+    if (!_isMedicationDay(schedule, yesterday)) return false;
+
+    // Cek apakah kemarin sudah tercatat minum
+    final history = await getMedicationHistory();
+    final yesterdayTaken = history.any((d) =>
+        d.year == yesterday.year &&
+        d.month == yesterday.month &&
+        d.day == yesterday.day);
+
+    if (yesterdayTaken) return false;
+
+    // Terlewat! Reset progres
+    await resetProgress();
+    return true;
+  }
+
+  /// Cek apakah tanggal tertentu adalah hari minum obat sesuai jadwal.
+  static bool _isMedicationDay(ScheduleModel schedule, DateTime date) {
+    if (schedule.isDaily) return true;
+    if (schedule.selectedDays.isEmpty) return true;
+
+    const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    final dayName = dayNames[date.weekday % 7];
+    return schedule.selectedDays.contains(dayName);
   }
 }

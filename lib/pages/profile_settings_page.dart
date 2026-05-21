@@ -3,7 +3,6 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import 'login_page.dart';
-import 'schedule_setup_page.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   final String initialName;
@@ -27,7 +26,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
 
-  bool _isOldPasswordVisible = false;
   bool _isNewPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
@@ -62,16 +60,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Ubah Nama Profil',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          title: const Text('Ubah Nama Profil',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332), fontSize: 16),
           ),
           content: _buildCompactTextField(
             controller: controller,
             hint: 'Masukkan nama baru',
             icon: Icons.person_outline,
           ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           actions: [
             Row(children: [
               Expanded(
@@ -79,13 +76,13 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   onPressed: isLoading ? null : () => Navigator.pop(ctx),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey, fontSize: 13)),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
                   onPressed: isLoading
@@ -106,26 +103,17 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             }
                           } catch (e) {
                             setDialogState(() => isLoading = false);
-                            _showErrorSnackBar(
-                                e.toString().replaceFirst('Exception: ', ''));
+                            _showErrorSnackBar(e.toString().replaceFirst('Exception: ', ''));
                           }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006D37),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Simpan',
-                          style: TextStyle(color: Colors.white)),
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 13)),
                 ),
               ),
             ]),
@@ -135,44 +123,26 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     );
   }
 
-  // ─── Dialog: Ubah Email (wajib password) ─────────────────────────────────
+  // ─── Dialog: Ubah Email ─────────────────────────────────────────────────
   void _showEditEmailDialog() {
     final emailController = TextEditingController(text: _email);
-    final passwordController = TextEditingController();
     bool isLoading = false;
-    bool isPasswordVisible = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Ubah Email',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          title: const Text('Ubah Email',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332), fontSize: 16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCompactTextField(
-                controller: emailController,
-                hint: 'Masukkan email baru',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              _buildCompactTextField(
-                controller: passwordController,
-                hint: 'Masukkan password untuk verifikasi',
-                icon: Icons.lock_outline,
-                isPassword: true,
-                isVisible: isPasswordVisible,
-                onToggle: () => setDialogState(
-                    () => isPasswordVisible = !isPasswordVisible),
-              ),
-            ],
+          content: _buildCompactTextField(
+            controller: emailController,
+            hint: 'Masukkan email baru',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
           ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           actions: [
             Row(children: [
               Expanded(
@@ -180,20 +150,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   onPressed: isLoading ? null : () => Navigator.pop(ctx),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey, fontSize: 13)),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
                   onPressed: isLoading
                       ? null
                       : () async {
                           final newEmail = emailController.text.trim();
-                          final password = passwordController.text;
 
                           if (newEmail.isEmpty) {
                             _showErrorSnackBar('Email tidak boleh kosong.');
@@ -204,45 +173,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             _showErrorSnackBar('Format email tidak valid.');
                             return;
                           }
-                          if (password.isEmpty) {
-                            _showErrorSnackBar(
-                                'Masukkan password untuk verifikasi.');
-                            return;
-                          }
 
                           setDialogState(() => isLoading = true);
                           try {
-                            final result = await ProfileService.updateEmail(
-                              newEmail: newEmail,
-                              currentPassword: password,
-                            );
+                            await ProfileService.updateEmail(newEmail: newEmail);
                             if (mounted) {
                               setState(() => _email = newEmail);
                               Navigator.pop(ctx);
-                              _showSuccessSnackBar(result.message);
+                              _showSuccessSnackBar('Email berhasil diperbarui!');
                             }
                           } catch (e) {
                             setDialogState(() => isLoading = false);
-                            _showErrorSnackBar(
-                                e.toString().replaceFirst('Exception: ', ''));
+                            _showErrorSnackBar(e.toString().replaceFirst('Exception: ', ''));
                           }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006D37),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Simpan',
-                          style: TextStyle(color: Colors.white)),
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 13)),
                 ),
               ),
             ]),
@@ -252,9 +204,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     );
   }
 
-  // ─── Dialog: Ubah Password (wajib password lama) ─────────────────────────
+  // ─── Dialog: Ubah Kata Sandi (langsung input password baru) ──────────────
   void _showEditPasswordDialog() {
-    final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
     final confirmPassController = TextEditingController();
     bool isLoading = false;
@@ -264,45 +215,36 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Ubah Kata Sandi',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          title: const Text('Ubah Kata Sandi',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332), fontSize: 16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCompactTextField(
-                controller: oldPassController,
-                hint: 'Kata sandi saat ini',
-                icon: Icons.lock_outline,
-                isPassword: true,
-                isVisible: _isOldPasswordVisible,
-                onToggle: () => setDialogState(
-                    () => _isOldPasswordVisible = !_isOldPasswordVisible),
-              ),
-              const SizedBox(height: 12),
-              _buildCompactTextField(
-                controller: newPassController,
-                hint: 'Kata sandi baru (min. 6 karakter)',
-                icon: Icons.lock_outline,
-                isPassword: true,
-                isVisible: _isNewPasswordVisible,
-                onToggle: () => setDialogState(
-                    () => _isNewPasswordVisible = !_isNewPasswordVisible),
-              ),
-              const SizedBox(height: 12),
-              _buildCompactTextField(
-                controller: confirmPassController,
-                hint: 'Konfirmasi kata sandi baru',
-                icon: Icons.lock_outline,
-                isPassword: true,
-                isVisible: _isConfirmPasswordVisible,
-                onToggle: () => setDialogState(
-                    () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildCompactTextField(
+                  controller: newPassController,
+                  hint: 'Kata sandi baru (min. 6 karakter)',
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                  isVisible: _isNewPasswordVisible,
+                  onToggle: () => setDialogState(
+                      () => _isNewPasswordVisible = !_isNewPasswordVisible),
+                ),
+                const SizedBox(height: 10),
+                _buildCompactTextField(
+                  controller: confirmPassController,
+                  hint: 'Konfirmasi kata sandi baru',
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                  isVisible: _isConfirmPasswordVisible,
+                  onToggle: () => setDialogState(
+                      () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                ),
+              ],
+            ),
           ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           actions: [
             Row(children: [
               Expanded(
@@ -310,75 +252,50 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   onPressed: isLoading ? null : () => Navigator.pop(ctx),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey, fontSize: 13)),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
                   onPressed: isLoading
                       ? null
                       : () async {
-                          final oldPassword = oldPassController.text;
                           final newPassword = newPassController.text;
                           final confirmPassword = confirmPassController.text;
 
-                          if (oldPassword.isEmpty) {
-                            _showErrorSnackBar(
-                                'Masukkan kata sandi saat ini.');
-                            return;
-                          }
                           if (newPassword.length < 6) {
                             _showErrorSnackBar('Password minimal 6 karakter!');
                             return;
                           }
                           if (newPassword != confirmPassword) {
-                            _showErrorSnackBar(
-                                'Konfirmasi kata sandi tidak cocok!');
-                            return;
-                          }
-                          if (oldPassword == newPassword) {
-                            _showErrorSnackBar(
-                                'Password baru harus berbeda dengan password saat ini.');
+                            _showErrorSnackBar('Konfirmasi kata sandi tidak cocok!');
                             return;
                           }
 
                           setDialogState(() => isLoading = true);
                           try {
-                            await ProfileService.updatePassword(
-                              newPassword: newPassword,
-                              currentPassword: oldPassword,
-                            );
+                            await ProfileService.resetPasswordDirectly(newPassword);
                             if (mounted) {
                               Navigator.pop(ctx);
-                              _showSuccessSnackBar(
-                                  'Kata sandi berhasil diubah!');
+                              _showSuccessSnackBar('Kata sandi berhasil diubah!');
                             }
                           } catch (e) {
                             setDialogState(() => isLoading = false);
-                            _showErrorSnackBar(
-                                e.toString().replaceFirst('Exception: ', ''));
+                            _showErrorSnackBar(e.toString().replaceFirst('Exception: ', ''));
                           }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006D37),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Simpan',
-                          style: TextStyle(color: Colors.white)),
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 13)),
                 ),
               ),
             ]),
@@ -387,6 +304,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
     );
   }
+
+
 
   // ─── Dialog: Ganti Foto ──────────────────────────────────────────────────
   void _showEditPhotoOptions() {
@@ -591,51 +510,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   onTap: _showEditEmailDialog),
               _buildMenuTile(Icons.lock_outline, 'Ubah Kata Sandi',
                   onTap: _showEditPasswordDialog),
-              _buildMenuTile(Icons.edit_calendar_outlined,
-                  'Atur Ulang Jadwal / Ganti Obat',
-                  onTap: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                    title: const Text(
-                      'Edit Jadwal?',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1B4332)),
-                    ),
-                    content: const Text(
-                      'Apakah kamu yakin ingin mengubah jadwal minum obat?',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Batal',
-                            style: TextStyle(color: Colors.grey)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF006D37),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: const Text('Ya, Edit',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm != true) return;
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const ScheduleSetupPage()),
-                );
-                if (result != null && mounted) Navigator.pop(context, result);
-              }),
             ]),
 
             const SizedBox(height: 20),
@@ -708,31 +582,41 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       controller: controller,
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 14),
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        prefixIcon: Icon(icon, color: const Color(0xFF006D37), size: 20),
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+        isDense: true,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Icon(icon, color: const Color(0xFF006D37), size: 18),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 0),
         suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  isVisible ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey,
-                  size: 20,
+            ? Padding(
+                padding: EdgeInsets.zero,
+                child: IconButton(
+                  icon: Icon(
+                    isVisible ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey,
+                    size: 18,
+                  ),
+                  onPressed: onToggle,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
-                onPressed: onToggle,
               )
             : null,
         filled: true,
         fillColor: const Color(0xFFF0FFF6),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFF40916C), width: 1.5),
         ),
       ),

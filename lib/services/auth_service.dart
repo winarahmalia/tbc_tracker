@@ -133,6 +133,16 @@ class AuthService {
     }
   }
 
+  // ─── Kirim email reset password ─────────────────────────────────────────
+  static Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email);
+    } on AuthException catch (e) {
+      debugPrint('AuthService resetPassword error: ${e.message}');
+      throw Exception('Gagal kirim email reset: ${e.message}');
+    }
+  }
+
   // ─── Logout ───────────────────────────────────────────────────────────────
   static Future<void> signOut() async {
     await CacheService.clearAll();

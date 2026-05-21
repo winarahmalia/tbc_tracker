@@ -24,7 +24,7 @@ class ScheduleService {
       'user_id': userId,
       'start_day': startDay,
       'target_day': targetDay,
-      if (reminderTime != null) 'reminder_time': reminderTime,
+      'reminder_time': reminderTime,
       'is_daily': isDaily,
       'selected_days': selectedDays,
       'updated_at': DateTime.now().toIso8601String(),

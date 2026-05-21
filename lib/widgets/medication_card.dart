@@ -118,7 +118,7 @@ class MedicationCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    "(${totalDays - currentDay} Hari Lagi)",
+                    "(${(totalDays - currentDay).clamp(0, totalDays)} Hari Lagi)",
                     style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ),
@@ -129,22 +129,26 @@ class MedicationCard extends StatelessWidget {
           isTaken
               ? SizedBox(
                   width: double.infinity,
-                  height: 55,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2ECC71).withOpacity(0.4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check, color: Colors.white, size: 20),
-                        SizedBox(width: 10),
-                        Text(
-                          "Anda Sudah Minum Obat Hari Ini",
-                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        Icon(Icons.check, color: Colors.white, size: 18),
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            "Anda Sudah Minum Obat",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
@@ -152,7 +156,7 @@ class MedicationCard extends StatelessWidget {
                 )
               : Container(
                   width: double.infinity,
-                  height: 55,
+                  height: 50,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF006D37), Color(0xFF2ECC71)],
@@ -174,15 +178,19 @@ class MedicationCard extends StatelessWidget {
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check, color: Colors.white, size: 20),
-                        SizedBox(width: 10),
-                        Text(
-                          "Saya Sudah Minum Obat Hari Ini",
-                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        Icon(Icons.check, color: Colors.white, size: 18),
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            "Saya Sudah Minum Obat",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),

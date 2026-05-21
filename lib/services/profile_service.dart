@@ -62,30 +62,14 @@ class ProfileService {
     await _safeUpdateProfile({'name': newName.trim()});
   }
 
-  // ─── Update Email (wajib verifikasi password) ────────────────────────────
-  /// Mengubah email. Membutuhkan password untuk re-autentikasi.
-  /// Jika Supabase "Confirm email" ON, email baru perlu dikonfirmasi dulu.
-  static Future<({bool needsConfirmation, String message})> updateEmail({
-    required String newEmail,
-    required String currentPassword,
-  }) async {
+  // ─── Update Email ────────────────────────────────────────────────────────
+  static Future<void> updateEmail({required String newEmail}) async {
     final email = newEmail.trim().toLowerCase();
     if (email.isEmpty) throw Exception('Email tidak boleh kosong.');
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       throw Exception('Format email tidak valid.');
     }
 
-    // Re-autentikasi dulu untuk security
-    try {
-      await _client.auth.signInWithPassword(
-        email: _client.auth.currentUser?.email ?? '',
-        password: currentPassword,
-      );
-    } on AuthException {
-      throw Exception('Password saat ini salah.');
-    }
-
-    // Update email di Auth
     try {
       await _client.auth.updateUser(UserAttributes(email: email));
     } on AuthException catch (e) {
@@ -95,21 +79,18 @@ class ProfileService {
       }
       throw Exception('Gagal update email: ${e.message}');
     }
+  }
 
-    // Email is only stored in Supabase Auth, not in the profiles table.
-    // No need to update profiles table for email changes.
-
-    // Cek apakah perlu konfirmasi
-    final user = _client.auth.currentUser;
-    final needsConfirmation =
-        user != null && user.email != email;
-
-    return (
-      needsConfirmation: needsConfirmation,
-      message: needsConfirmation
-          ? 'Email berhasil diperbarui. Cek kotak masuk $email untuk konfirmasi.'
-          : 'Email berhasil diperbarui.',
-    );
+  // ─── Reset password tanpa verifikasi (user sudah login) ─────────────────
+  static Future<void> resetPasswordDirectly(String newPassword) async {
+    if (newPassword.length < 6) {
+      throw Exception('Password minimal 6 karakter.');
+    }
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      throw Exception('Gagal reset password: ${e.message}');
+    }
   }
 
   // ─── Update Password (wajib verifikasi password lama) ─────────────────────

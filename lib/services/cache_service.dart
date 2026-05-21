@@ -54,6 +54,14 @@ class CacheService {
     return DateTime.tryParse(raw);
   }
 
+  /// Hapus cache jadwal (saat reset progres)
+  static Future<void> clearScheduleCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keySchedule);
+    await prefs.remove(_keyLastFetch);
+    debugPrint('[CacheService] Schedule cache cleared');
+  }
+
   /// Hapus semua cache (saat logout)
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
