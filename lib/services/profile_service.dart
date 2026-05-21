@@ -18,10 +18,12 @@ class ProfileService {
         .maybeSingle();
 
     if (data == null) return null;
-    return UserProfileModel.fromJson({
-      'email': user.email ?? '',
-      ...data,
-    });
+
+    // Email comes from Auth, not from the profiles table
+    final profileData = Map<String, dynamic>.from(data);
+    profileData['email'] = user.email ?? '';
+
+    return UserProfileModel.fromJson(profileData);
   }
 
   static Future<void> _safeUpdateProfile(Map<String, dynamic> data) async {
@@ -29,7 +31,6 @@ class ProfileService {
     if (user == null) return;
 
     try {
-      // Ambil data yang ada agar upsert tidak menghapus kolom lain menjadi null
       final existing = await _client
           .from('profiles')
           .select()
@@ -41,7 +42,10 @@ class ProfileService {
       updateData['id'] = user.id;
 
       if (!updateData.containsKey('name')) updateData['name'] = 'Pengguna';
-      if (!updateData.containsKey('email')) updateData['email'] = user.email ?? '';
+
+      // Don't include 'email' — the profiles table doesn't have that column.
+      // Email is managed by Supabase Auth only.
+      updateData.remove('email');
 
       await _client.from('profiles').upsert(updateData);
     } catch (e) {
@@ -50,13 +54,40 @@ class ProfileService {
     }
   }
 
+  // ─── Update Nama ──────────────────────────────────────────────────────────
   static Future<void> updateName(String newName) async {
-    await _safeUpdateProfile({'name': newName});
+    if (newName.trim().isEmpty) {
+      throw Exception('Nama tidak boleh kosong.');
+    }
+    await _safeUpdateProfile({'name': newName.trim()});
   }
 
-  static Future<void> updateEmail(String newEmail) async {
+  // ─── Update Email (wajib verifikasi password) ────────────────────────────
+  /// Mengubah email. Membutuhkan password untuk re-autentikasi.
+  /// Jika Supabase "Confirm email" ON, email baru perlu dikonfirmasi dulu.
+  static Future<({bool needsConfirmation, String message})> updateEmail({
+    required String newEmail,
+    required String currentPassword,
+  }) async {
+    final email = newEmail.trim().toLowerCase();
+    if (email.isEmpty) throw Exception('Email tidak boleh kosong.');
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      throw Exception('Format email tidak valid.');
+    }
+
+    // Re-autentikasi dulu untuk security
     try {
-      await _client.auth.updateUser(UserAttributes(email: newEmail));
+      await _client.auth.signInWithPassword(
+        email: _client.auth.currentUser?.email ?? '',
+        password: currentPassword,
+      );
+    } on AuthException {
+      throw Exception('Password saat ini salah.');
+    }
+
+    // Update email di Auth
+    try {
+      await _client.auth.updateUser(UserAttributes(email: email));
     } on AuthException catch (e) {
       debugPrint('ProfileService updateEmail AuthException: ${e.message}');
       if (e.message.toLowerCase().contains('rate limit')) {
@@ -65,17 +96,50 @@ class ProfileService {
       throw Exception('Gagal update email: ${e.message}');
     }
 
+    // Email is only stored in Supabase Auth, not in the profiles table.
+    // No need to update profiles table for email changes.
+
+    // Cek apakah perlu konfirmasi
+    final user = _client.auth.currentUser;
+    final needsConfirmation =
+        user != null && user.email != email;
+
+    return (
+      needsConfirmation: needsConfirmation,
+      message: needsConfirmation
+          ? 'Email berhasil diperbarui. Cek kotak masuk $email untuk konfirmasi.'
+          : 'Email berhasil diperbarui.',
+    );
+  }
+
+  // ─── Update Password (wajib verifikasi password lama) ─────────────────────
+  static Future<void> updatePassword({
+    required String newPassword,
+    required String currentPassword,
+  }) async {
+    if (newPassword.length < 6) {
+      throw Exception('Password minimal 6 karakter.');
+    }
+
+    // Re-autentikasi dulu
     try {
-      await _safeUpdateProfile({'email': newEmail});
-    } catch (e) {
-      debugPrint('ProfileService profiles email update warning: $e');
+      await _client.auth.signInWithPassword(
+        email: _client.auth.currentUser?.email ?? '',
+        password: currentPassword,
+      );
+    } on AuthException {
+      throw Exception('Password saat ini salah.');
+    }
+
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      debugPrint('ProfileService updatePassword AuthException: ${e.message}');
+      throw Exception('Gagal update password: ${e.message}');
     }
   }
 
-  static Future<void> updatePassword(String newPassword) async {
-    await _client.auth.updateUser(UserAttributes(password: newPassword));
-  }
-
+  // ─── Avatar ───────────────────────────────────────────────────────────────
   static Future<String> uploadAvatarBytes({
     required Uint8List bytes,
     required String mimeType,

@@ -6,6 +6,7 @@ import '../widgets/info_carousel.dart';
 import '../services/schedule_service.dart';
 import '../services/medication_service.dart';
 import '../services/profile_service.dart';
+import '../services/cache_service.dart';
 import '../models/schedule_model.dart';
 import 'schedule_setup_page.dart';
 import 'calendar_history_page.dart';
@@ -40,13 +41,18 @@ class _HomePageState extends State<HomePage> {
   int _currentDay = 1;
   int _totalDays = 100;
   bool _isTaken = false;
+  bool _isMedicationDay = true;
+  bool _isCompleted = false;
   Set<DateTime> _takenDates = {};
   DateTime? _scheduleStartDate;
   bool _isLoadingSchedule = true;
 
-  double get _percentage =>
-      (((_currentDay - 1 + (_isTaken ? 1 : 0)) / _totalDays) * 100)
-          .clamp(0, 100);
+  double get _percentage {
+    final total = _totalDays;
+    if (total <= 0) return 0;
+    return (((_currentDay - 1 + (_isTaken ? 1 : 0)) / total) * 100)
+        .clamp(0, 100);
+  }
 
   @override
   void initState() {
@@ -77,7 +83,13 @@ class _HomePageState extends State<HomePage> {
     try {
       final history = await MedicationService.getMedicationHistory();
       final streak = await MedicationService.calculateCurrentStreak();
-      
+
+      // Cache untuk offline
+      final dateStrings =
+          history.map((d) => d.toIso8601String()).toList();
+      await CacheService.cacheTakenDates(dateStrings);
+      await CacheService.cacheStreak(streak);
+
       if (!mounted) return;
 
       final today = DateTime.now();
@@ -102,8 +114,70 @@ class _HomePageState extends State<HomePage> {
         _completionHistory = recentHistory;
       });
     } catch (e) {
-      debugPrint('Error loading medication data: $e');
+      debugPrint('Error loading medication data, fallback ke cache: $e');
+      // Fallback ke cache lokal saat offline
+      _loadMedicationFromCache();
     }
+  }
+
+  Future<void> _loadMedicationFromCache() async {
+    final cachedDates = await CacheService.getCachedTakenDates();
+    final cachedStreak = await CacheService.getCachedStreak();
+
+    if (cachedDates == null || cachedDates.isEmpty) return;
+
+    final history =
+        cachedDates.map((s) => DateTime.parse(s)).toList();
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    bool takenToday = history.any((d) =>
+        d.year == todayDate.year &&
+        d.month == todayDate.month &&
+        d.day == todayDate.day);
+
+    List<bool> recentHistory = [];
+    for (int i = 0; i < 6; i++) {
+      DateTime checkDate = todayDate.subtract(Duration(days: i));
+      bool found = history.any((d) =>
+          d.year == checkDate.year &&
+          d.month == checkDate.month &&
+          d.day == checkDate.day);
+      recentHistory.add(found);
+    }
+
+    if (mounted) {
+      setState(() {
+        _streakDays = cachedStreak;
+        _isTaken = takenToday;
+        _takenDates = history.toSet();
+        _completionHistory = recentHistory;
+      });
+    }
+  }
+
+  // ─── Hitung hari ke berapa sekarang sejak jadwal dimulai ────────────────
+  int _calculateCurrentDay(ScheduleModel schedule) {
+    final now = DateTime.now();
+    final startDate = schedule.createdAt;
+    final daysElapsed = now.difference(startDate).inDays;
+    final computedDay = schedule.startDay + daysElapsed;
+
+    // Tidak boleh kurang dari startDay
+    if (computedDay < schedule.startDay) return schedule.startDay;
+    return computedDay;
+  }
+
+  // ─── Cek apakah hari ini termasuk jadwal minum (untuk mode pilih hari) ──
+  bool _isTodayMedicationDay(ScheduleModel schedule) {
+    if (schedule.isDaily) return true;
+    if (schedule.selectedDays.isEmpty) return true;
+
+    // Nama hari dalam Bahasa Indonesia (cocok dengan isi selectedDays)
+    const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    final today = DateTime.now();
+    final todayName = dayNames[today.weekday % 7]; // DateTime.monday = 1
+    return schedule.selectedDays.contains(todayName);
   }
 
   // ─── Load jadwal dari Supabase ─────────────────────────────────────────────
@@ -111,15 +185,21 @@ class _HomePageState extends State<HomePage> {
     try {
       final schedule = await ScheduleService.getActiveSchedule();
       if (mounted && schedule != null) {
+        final currentDay = _calculateCurrentDay(schedule);
+        final isMedicationDay = _isTodayMedicationDay(schedule);
+        final isCompleted = currentDay > schedule.targetDay;
+
         setState(() {
           _scheduleSet = true;
-          _currentDay = schedule.startDay;
+          _currentDay = currentDay;
           _totalDays = schedule.targetDay;
           _scheduleStartDate = schedule.createdAt;
+          _isMedicationDay = isMedicationDay;
+          _isCompleted = isCompleted;
         });
       }
     } catch (e) {
-      // Gagal load jadwal — tampilkan card setup jadwal
+      debugPrint('[HomePage] Gagal load jadwal: $e');
     } finally {
       if (mounted) setState(() => _isLoadingSchedule = false);
     }
@@ -167,18 +247,15 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (result != null && mounted) {
-      setState(() {
-        _scheduleSet = true;
-        _currentDay = result['startDay'] as int;
-        _totalDays = result['targetDay'] as int;
-        _isTaken = false;
-        _scheduleStartDate = DateTime.now();
-      });
+      // Reload schedule from DB to get updated values + reschedule notification
+      await _loadScheduleFromDatabase();
+      await _loadMedicationData();
 
       if (mounted) {
+        setState(() => _isTaken = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Jadwal berhasil disimpan! 🎉'),
+            content: const Text('Jadwal berhasil disimpan!'),
             backgroundColor: const Color(0xFF40916C),
             behavior: SnackBarBehavior.floating,
             shape:
@@ -275,6 +352,10 @@ class _HomePageState extends State<HomePage> {
                               _buildLoadingScheduleCard()
                             else if (!_scheduleSet)
                               _buildSetupScheduleCard()
+                            else if (_isCompleted)
+                              _buildCompletedTreatmentCard()
+                            else if (!_isMedicationDay)
+                              _buildOffDayCard()
                             else
                               MedicationCard(
                                 currentDay: _currentDay,
@@ -362,6 +443,113 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedTreatmentCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B4332),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.celebration, size: 48, color: Color(0xFF2ECC71)),
+          const SizedBox(height: 12),
+          const Text(
+            "Selamat! Pengobatan Selesai",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Kamu telah menyelesaikan seluruh rangkaian pengobatan. Tetap jaga kesehatan!",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFFD1F2E1), fontSize: 13),
+          ),
+          const SizedBox(height: 15),
+          IconButton(
+            onPressed: _openScheduleSetup,
+            icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOffDayCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Jadwal Minum Obat",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1B4332),
+                ),
+              ),
+              IconButton(
+                onPressed: _openScheduleSetup,
+                icon: const Icon(Icons.edit_outlined, color: Color(0xFF006D37), size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(
+                "Hari ke $_currentDay dari $_totalDays",
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 25),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.notifications_off_outlined, color: Color(0xFFD97706), size: 22),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "Hari ini tidak ada jadwal minum obat. Tetap jaga kesehatan!",
+                    style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -511,14 +699,12 @@ class _HomePageState extends State<HomePage> {
             }
 
             if (result != null && mounted) {
-              setState(() {
-                _currentDay = result['startDay'] as int;
-                _totalDays = result['targetDay'] as int;
-              });
+              await _loadScheduleFromDatabase();
+              await _loadMedicationData();
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Jadwal berhasil diperbarui!'),
+                  content: const Text('Data berhasil diperbarui!'),
                   backgroundColor: const Color(0xFF2DC653),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -544,11 +730,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildGreeting() {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 10
+        ? 'Selamat Pagi'
+        : hour < 15
+            ? 'Selamat Siang'
+            : hour < 18
+                ? 'Selamat Sore'
+                : 'Selamat Malam';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Selamat Pagi, $_currentName",
+          "$greeting, $_currentName",
           style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,

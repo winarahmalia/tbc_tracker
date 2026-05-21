@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tbc/pages/splash_page.dart';
 import 'services/supabase_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   // Pastikan Flutter binding sudah siap sebelum memanggil kode asinkron
@@ -8,6 +9,9 @@ void main() async {
 
   // Inisialisasi Supabase sekali di awal aplikasi
   await SupabaseService.initialize();
+
+  // Inisialisasi notifikasi lokal untuk alarm pengingat
+  await NotificationService.initialize();
 
   runApp(const MyApp());
 }

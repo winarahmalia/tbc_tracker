@@ -14,18 +14,22 @@ class UserProfileModel {
   });
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
     return UserProfileModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Pengguna',
       email: json['email'] as String? ?? '',
       avatarUrl: json['avatar_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
     );
   }
+
+  /// Only includes fields that belong in the profiles table.
+  /// Email is NOT included because it lives in Supabase Auth, not profiles.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
-      'email': email,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
     };
   }

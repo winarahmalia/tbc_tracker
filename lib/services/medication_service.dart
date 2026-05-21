@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 /// Service untuk mencatat dan mengambil data riwayat minum obat harian
@@ -56,34 +55,30 @@ class MedicationService {
     final history = await getMedicationHistory();
     if (history.isEmpty) return 0;
 
-    int streak = 0;
-    DateTime today = DateTime.now();
+    // Konversi history ke set string "YYYY-MM-DD" untuk lookup cepat
+    final Set<String> takenDates = history
+        .map((d) =>
+            '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}')
+        .toSet();
+
+    final today = DateTime.now();
     DateTime currentDate = DateTime(today.year, today.month, today.day);
+    int streak = 0;
 
-    // Cek apakah hari ini sudah minum obat
-    bool hasTakenToday = history.any((d) => 
-      d.year == currentDate.year && d.month == currentDate.month && d.day == currentDate.day);
+    for (int i = 0; i < 365; i++) {
+      final key =
+          '${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}-${currentDate.day.toString().padLeft(2, '0')}';
 
-    // Jika hari ini belum minum, cek kemarin. Jika kemarin juga belum, streak terputus (0).
-    if (!hasTakenToday) {
-      DateTime yesterday = currentDate.subtract(const Duration(days: 1));
-      bool hasTakenYesterday = history.any((d) => 
-        d.year == yesterday.year && d.month == yesterday.month && d.day == yesterday.day);
-      
-      if (!hasTakenYesterday) return 0; // Streak putus
-      currentDate = yesterday; // Mulai hitung mundur dari kemarin
-    }
-
-    // Hitung streak ke belakang
-    for (int i = 0; i < history.length; i++) {
-      bool found = history.any((d) => 
-        d.year == currentDate.year && d.month == currentDate.month && d.day == currentDate.day);
-      
-      if (found) {
+      if (takenDates.contains(key)) {
         streak++;
         currentDate = currentDate.subtract(const Duration(days: 1));
       } else {
-        break; // Ada hari yang bolong
+        // Hari ke-0 (hari ini) tidak ditemukan — cek kemarin dulu
+        if (i == 0) {
+          currentDate = currentDate.subtract(const Duration(days: 1));
+          continue;
+        }
+        break;
       }
     }
 

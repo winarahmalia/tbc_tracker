@@ -41,6 +41,13 @@ dependencies:
   # Image picker — untuk upload foto profil dari kamera/galeri
   image_picker: ^1.1.2
 
+  # Local notifications — untuk alarm pengingat minum obat
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
+  # Shared preferences — untuk cache lokal (offline)
+  shared_preferences: ^2.3.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

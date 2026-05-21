@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../constants/colors.dart';
-import '../widgets/custom_input.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import 'login_page.dart';
@@ -40,6 +38,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _email = widget.initialEmail;
     _loadProfile();
   }
+
   Future<void> _loadProfile() async {
     try {
       final profile = await ProfileService.getProfile();
@@ -52,155 +51,243 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       }
     } catch (_) {}
   }
+
+  // ─── Dialog: Ubah Nama ──────────────────────────────────────────────────
   void _showEditNameDialog() {
     final controller = TextEditingController(text: _name);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Ubah Nama Profil',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
-        ),
-        content: _buildCompactTextField(
-          controller: controller,
-          hint: 'Masukkan nama baru',
-          icon: Icons.person_outline,
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.grey),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (controller.text.trim().isEmpty) return;
-                  Navigator.pop(ctx);
-                  try {
-                    await ProfileService.updateName(controller.text.trim());
-                    if (mounted) {
-                      setState(() => _name = controller.text.trim());
-                      _showSuccessSnackBar('Nama profil berhasil diperbarui!');
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                          e.toString().replaceFirst('Exception: ', ''));
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006D37),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Simpan',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-  void _showEditEmailDialog() {
-    final controller = TextEditingController(text: _email);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Ubah Email',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
-        ),
-        content: _buildCompactTextField(
-          controller: controller,
-          hint: 'Masukkan email baru',
-          icon: Icons.email_outlined,
-          keyboardType: TextInputType.emailAddress,
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.grey),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (controller.text.trim().isEmpty) return;
-                  Navigator.pop(ctx);
-                  try {
-                    await ProfileService.updateEmail(controller.text.trim());
-                    if (mounted) {
-                      setState(() => _email = controller.text.trim());
-                      _showSuccessSnackBar('Email berhasil diperbarui!');
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                          e.toString().replaceFirst('Exception: ', ''));
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006D37),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Simpan',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-  void _showEditPasswordDialog() {
-    final newPassController = TextEditingController();
-    final confirmPassController = TextEditingController();
+    bool isLoading = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Ubah Kata Sandi',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          title: const Text(
+            'Ubah Nama Profil',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          ),
+          content: _buildCompactTextField(
+            controller: controller,
+            hint: 'Masukkan nama baru',
+            icon: Icons.person_outline,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.grey),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final newName = controller.text.trim();
+                          if (newName.isEmpty) {
+                            _showErrorSnackBar('Nama tidak boleh kosong.');
+                            return;
+                          }
+                          setDialogState(() => isLoading = true);
+                          try {
+                            await ProfileService.updateName(newName);
+                            if (mounted) {
+                              setState(() => _name = newName);
+                              Navigator.pop(ctx);
+                              _showSuccessSnackBar('Nama profil berhasil diperbarui!');
+                            }
+                          } catch (e) {
+                            setDialogState(() => isLoading = false);
+                            _showErrorSnackBar(
+                                e.toString().replaceFirst('Exception: ', ''));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF006D37),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Simpan',
+                          style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ]),
+          ],
         ),
-        content: StatefulBuilder(
-          builder: (ctx2, setS) => Column(
+      ),
+    );
+  }
+
+  // ─── Dialog: Ubah Email (wajib password) ─────────────────────────────────
+  void _showEditEmailDialog() {
+    final emailController = TextEditingController(text: _email);
+    final passwordController = TextEditingController();
+    bool isLoading = false;
+    bool isPasswordVisible = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Ubah Email',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          ),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildCompactTextField(
+                controller: emailController,
+                hint: 'Masukkan email baru',
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              _buildCompactTextField(
+                controller: passwordController,
+                hint: 'Masukkan password untuk verifikasi',
+                icon: Icons.lock_outline,
+                isPassword: true,
+                isVisible: isPasswordVisible,
+                onToggle: () => setDialogState(
+                    () => isPasswordVisible = !isPasswordVisible),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.grey),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final newEmail = emailController.text.trim();
+                          final password = passwordController.text;
+
+                          if (newEmail.isEmpty) {
+                            _showErrorSnackBar('Email tidak boleh kosong.');
+                            return;
+                          }
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(newEmail)) {
+                            _showErrorSnackBar('Format email tidak valid.');
+                            return;
+                          }
+                          if (password.isEmpty) {
+                            _showErrorSnackBar(
+                                'Masukkan password untuk verifikasi.');
+                            return;
+                          }
+
+                          setDialogState(() => isLoading = true);
+                          try {
+                            final result = await ProfileService.updateEmail(
+                              newEmail: newEmail,
+                              currentPassword: password,
+                            );
+                            if (mounted) {
+                              setState(() => _email = newEmail);
+                              Navigator.pop(ctx);
+                              _showSuccessSnackBar(result.message);
+                            }
+                          } catch (e) {
+                            setDialogState(() => isLoading = false);
+                            _showErrorSnackBar(
+                                e.toString().replaceFirst('Exception: ', ''));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF006D37),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Simpan',
+                          style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Dialog: Ubah Password (wajib password lama) ─────────────────────────
+  void _showEditPasswordDialog() {
+    final oldPassController = TextEditingController();
+    final newPassController = TextEditingController();
+    final confirmPassController = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Ubah Kata Sandi',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildCompactTextField(
+                controller: oldPassController,
+                hint: 'Kata sandi saat ini',
+                icon: Icons.lock_outline,
+                isPassword: true,
+                isVisible: _isOldPasswordVisible,
+                onToggle: () => setDialogState(
+                    () => _isOldPasswordVisible = !_isOldPasswordVisible),
+              ),
+              const SizedBox(height: 12),
+              _buildCompactTextField(
                 controller: newPassController,
-                hint: 'Kata sandi baru',
+                hint: 'Kata sandi baru (min. 6 karakter)',
                 icon: Icons.lock_outline,
                 isPassword: true,
                 isVisible: _isNewPasswordVisible,
-                onToggle: () => setS(
+                onToggle: () => setDialogState(
                     () => _isNewPasswordVisible = !_isNewPasswordVisible),
               ),
               const SizedBox(height: 12),
@@ -210,64 +297,98 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 icon: Icons.lock_outline,
                 isPassword: true,
                 isVisible: _isConfirmPasswordVisible,
-                onToggle: () => setS(() =>
-                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                onToggle: () => setDialogState(
+                    () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.grey),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final oldPassword = oldPassController.text;
+                          final newPassword = newPassController.text;
+                          final confirmPassword = confirmPassController.text;
+
+                          if (oldPassword.isEmpty) {
+                            _showErrorSnackBar(
+                                'Masukkan kata sandi saat ini.');
+                            return;
+                          }
+                          if (newPassword.length < 6) {
+                            _showErrorSnackBar('Password minimal 6 karakter!');
+                            return;
+                          }
+                          if (newPassword != confirmPassword) {
+                            _showErrorSnackBar(
+                                'Konfirmasi kata sandi tidak cocok!');
+                            return;
+                          }
+                          if (oldPassword == newPassword) {
+                            _showErrorSnackBar(
+                                'Password baru harus berbeda dengan password saat ini.');
+                            return;
+                          }
+
+                          setDialogState(() => isLoading = true);
+                          try {
+                            await ProfileService.updatePassword(
+                              newPassword: newPassword,
+                              currentPassword: oldPassword,
+                            );
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              _showSuccessSnackBar(
+                                  'Kata sandi berhasil diubah!');
+                            }
+                          } catch (e) {
+                            setDialogState(() => isLoading = false);
+                            _showErrorSnackBar(
+                                e.toString().replaceFirst('Exception: ', ''));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF006D37),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Simpan',
+                          style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ]),
+          ],
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.grey),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (newPassController.text.length < 6) {
-                    _showErrorSnackBar('Password minimal 6 karakter!');
-                    return;
-                  }
-                  if (newPassController.text != confirmPassController.text) {
-                    _showErrorSnackBar('Konfirmasi kata sandi tidak cocok!');
-                    return;
-                  }
-                  Navigator.pop(ctx);
-                  try {
-                    await ProfileService.updatePassword(newPassController.text);
-                    if (mounted) _showSuccessSnackBar('Kata sandi berhasil diubah!');
-                  } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                          e.toString().replaceFirst('Exception: ', ''));
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006D37),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Simpan',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ]),
-        ],
       ),
-    ),
-  );
-}
+    );
+  }
+
+  // ─── Dialog: Ganti Foto ──────────────────────────────────────────────────
   void _showEditPhotoOptions() {
     showModalBottomSheet(
       context: context,
@@ -319,6 +440,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
     );
   }
+
   Future<void> _pickAndUploadImage(ImageSource source) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
@@ -365,6 +487,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (mounted) setState(() => _isUploadingAvatar = false);
     }
   }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -411,6 +534,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
     );
   }
+
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -570,6 +694,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ],
     );
   }
+
   Widget _buildCompactTextField({
     required TextEditingController controller,
     required String hint,
@@ -628,6 +753,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
     );
   }
+
   Widget _buildMenuGroup(List<Widget> items) {
     return Container(
       decoration: BoxDecoration(
@@ -650,6 +776,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
     );
   }
+
   Widget _buildMenuTile(IconData icon, String title, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
@@ -684,9 +811,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
       ),
     );
-  }
-  Widget _buildMenuItem(IconData icon, String title, {VoidCallback? onTap}) {
-    return _buildMenuTile(icon, title, onTap: onTap);
   }
 
   Widget _buildCommunityCard() {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import '../models/user_profile_model.dart';
+import 'cache_service.dart';
 
 /// Service untuk semua operasi autentikasi menggunakan Supabase Auth.
 class AuthService {
@@ -47,7 +48,6 @@ class AuthService {
         await _client.from('profiles').upsert({
           'id': user.id,
           'name': name,
-          'email': email,
         });
         debugPrint('[AuthService] Profile inserted OK');
       } catch (e) {
@@ -113,7 +113,6 @@ class AuthService {
         await _client.from('profiles').upsert({
           'id': user.id,
           'name': name,
-          'email': email,
         });
       } catch (e) {
         debugPrint('[AuthService] Profile upsert error: $e');
@@ -136,6 +135,7 @@ class AuthService {
 
   // ─── Logout ───────────────────────────────────────────────────────────────
   static Future<void> signOut() async {
+    await CacheService.clearAll();
     await _client.auth.signOut();
   }
 
